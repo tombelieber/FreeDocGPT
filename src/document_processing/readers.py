@@ -2,13 +2,14 @@ import io
 import json
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict
 
 import markdown
 import pandas as pd
 from bs4 import BeautifulSoup
 from docx import Document
 from pypdf import PdfReader
+from .vision_readers import VisionDocumentReader
 
 logger = logging.getLogger(__name__)
 
@@ -16,12 +17,23 @@ logger = logging.getLogger(__name__)
 class DocumentReader:
     """Handles reading various document formats."""
     
-    @staticmethod
-    def read_pdf_bytes(pdf_bytes: bytes) -> str:
-        """Read PDF from bytes."""
+    def __init__(self):
+        self.vision_reader = VisionDocumentReader()
+    
+    def read_pdf_bytes(self, pdf_bytes: bytes, vision_enabled: bool = True) -> str:
+        """Read PDF from bytes with optional vision support."""
         try:
-            reader = PdfReader(io.BytesIO(pdf_bytes))
-            return "\n".join([p.extract_text() or "" for p in reader.pages])
+            if vision_enabled:
+                # Use vision reader for comprehensive extraction
+                pdf_content = self.vision_reader.read_pdf_with_vision(pdf_bytes)
+                # Store the full content for later use
+                self.last_pdf_content = pdf_content
+                # Return formatted text for indexing
+                return self.vision_reader.format_for_indexing(pdf_content)
+            else:
+                # Basic text extraction only
+                reader = PdfReader(io.BytesIO(pdf_bytes))
+                return "\n".join([p.extract_text() or "" for p in reader.pages])
         except Exception as e:
             logger.error(f"Error reading PDF: {e}")
             raise
@@ -122,7 +134,7 @@ class DocumentReader:
                 file_bytes = f.read()
             
             if ext == ".pdf":
-                return self.read_pdf_bytes(file_bytes)
+                return self.read_pdf_bytes(file_bytes, vision_enabled=True)
             elif ext in [".docx", ".doc"]:
                 return self.read_docx_bytes(file_bytes)
             elif ext in [".md", ".markdown"]:

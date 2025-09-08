@@ -19,6 +19,7 @@ class Settings:
     # Model settings
     embed_model: str = field(default_factory=lambda: os.getenv("EMBED_MODEL", "embeddinggemma:300m"))
     gen_model: str = field(default_factory=lambda: os.getenv("GEN_MODEL", "gpt-oss:20b"))
+    vision_model: str = field(default_factory=lambda: os.getenv("VISION_MODEL", "llava:7b"))
     
     # Document settings
     documents_folder: str = field(default_factory=lambda: os.getenv("DOCUMENTS_FOLDER", "documents"))

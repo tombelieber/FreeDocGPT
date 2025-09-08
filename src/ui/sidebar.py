@@ -47,6 +47,8 @@ def render_sidebar(db_manager: DatabaseManager, indexer: DocumentIndexer):
             st.warning(f"No documents found in `./{settings.documents_folder}/`")
             st.markdown("**Supported formats:**")
             st.markdown("PDF, Word, Markdown, HTML, CSV, Excel, JSON, TXT, etc.")
+            st.markdown("**🎨 Vision Support:**")
+            st.markdown("✅ PDF images, charts, and diagrams via LLaVA")
         
         st.divider()
         
