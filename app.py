@@ -2,16 +2,15 @@ import io
 import os
 import time
 import requests
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Tuple
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime
 from dotenv import load_dotenv
 
 import streamlit as st
 from pypdf import PdfReader
 import pyarrow as pa
 import json
-import csv
 
 import ollama
 import lancedb
@@ -406,16 +405,36 @@ with st.sidebar:
         # Check Ollama connection
         if st.button("🔍 Check Ollama Status"):
             try:
-                models = ollama.list()
-                available_models = [m['name'] for m in models['models']]
-                st.success(f"✅ Ollama is running! Available models: {', '.join(available_models)}")
-                
-                if embed_model not in str(available_models):
-                    st.error(f"❌ Embedding model '{embed_model}' not found. Please run: `ollama pull {embed_model}`")
-                if gen_model not in str(available_models):
-                    st.error(f"❌ Generation model '{gen_model}' not found. Please run: `ollama pull {gen_model}`")
+                # Try to list models
+                response = requests.get("http://localhost:11434/api/tags")
+                if response.status_code == 200:
+                    models_data = response.json()
+                    if 'models' in models_data and models_data['models']:
+                        available_models = [m['name'] for m in models_data['models']]
+                        st.success(f"✅ Ollama is running! Available models: {', '.join(available_models)}")
+                        
+                        # Check if required models are installed
+                        model_names = ' '.join(available_models).lower()
+                        embed_found = any(embed_model.lower() in model.lower() for model in available_models)
+                        gen_found = any(gen_model.lower() in model.lower() for model in available_models)
+                        
+                        if not embed_found:
+                            st.error(f"❌ Embedding model '{embed_model}' not found. Please run: `ollama pull {embed_model}`")
+                        else:
+                            st.info(f"✅ Embedding model '{embed_model}' is available")
+                            
+                        if not gen_found:
+                            st.error(f"❌ Generation model '{gen_model}' not found. Please run: `ollama pull {gen_model}`")
+                        else:
+                            st.info(f"✅ Generation model '{gen_model}' is available")
+                    else:
+                        st.warning("⚠️ Ollama is running but no models are installed. Please pull the required models.")
+                else:
+                    st.error(f"❌ Cannot connect to Ollama. Status code: {response.status_code}")
+            except requests.ConnectionError:
+                st.error("❌ Cannot connect to Ollama. Make sure it's running with: `ollama serve`")
             except Exception as e:
-                st.error(f"❌ Cannot connect to Ollama. Make sure it's running: `ollama serve`\nError: {e}")
+                st.error(f"❌ Error checking Ollama status: {e}")
 
 # Main chat interface
 st.header("💬 Ask Questions")
