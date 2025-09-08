@@ -2,9 +2,9 @@ import io
 import os
 import time
 import requests
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
 import streamlit as st
@@ -279,15 +279,40 @@ def prepare_context(query: str, search_results) -> tuple:
     return system, user, "\n".join(cites)
 
 
-def stream_chat(messages, model: str = GEN_MODEL):
-    """Stream chat responses."""
+def stream_chat(messages, model: str = GEN_MODEL) -> Tuple[str, Dict]:
+    """Stream chat responses with statistics."""
+    response_text = ""
+    token_count = 0
+    start_time = time.time()
+    first_token_time = None
+    
     try:
         stream = ollama.chat(model=model, messages=messages, stream=True)
         for chunk in stream:
             if "message" in chunk and "content" in chunk["message"]:
-                yield chunk["message"]["content"]
+                content = chunk["message"]["content"]
+                if content:
+                    if first_token_time is None:
+                        first_token_time = time.time()
+                    response_text += content
+                    token_count += len(content.split())
+                    yield content
     except Exception as e:
         yield f"\nError: {e}"
+    
+    # Calculate statistics
+    end_time = time.time()
+    total_time = end_time - start_time
+    time_to_first_token = (first_token_time - start_time) if first_token_time else 0
+    
+    stats = {
+        "total_time": total_time,
+        "time_to_first_token": time_to_first_token,
+        "tokens": token_count,
+        "tokens_per_sec": token_count / total_time if total_time > 0 else 0
+    }
+    
+    return response_text, stats
 
 
 # ---------- UI ----------
@@ -304,6 +329,8 @@ st.markdown("Simply add documents to the `documents` folder and start asking que
 # Initialize session state
 if 'messages' not in st.session_state:
     st.session_state.messages = []
+if 'response_stats' not in st.session_state:
+    st.session_state.response_stats = []
 
 # Sidebar
 with st.sidebar:
@@ -360,16 +387,70 @@ with st.sidebar:
         top_k = st.slider("Search Results", 1, 10, 5)
         
         st.subheader("Models")
-        embed_model = st.text_input("Embedding Model", value=EMBED_MODEL)
-        gen_model = st.text_input("Generation Model", value=GEN_MODEL)
+        
+        # Ollama prerequisite warning
+        st.warning("""
+        ⚠️ **Prerequisites Required:**
+        1. Install Ollama: `brew install ollama`
+        2. Start Ollama: `ollama serve`
+        3. Pull required models:
+           - `ollama pull embeddinggemma:300m`
+           - `ollama pull gpt-oss:20b`
+        """)
+        
+        embed_model = st.text_input("Embedding Model", value=EMBED_MODEL,
+                                   help="Make sure this model is installed in Ollama")
+        gen_model = st.text_input("Generation Model", value=GEN_MODEL,
+                                 help="Make sure this model is installed in Ollama")
+        
+        # Check Ollama connection
+        if st.button("🔍 Check Ollama Status"):
+            try:
+                models = ollama.list()
+                available_models = [m['name'] for m in models['models']]
+                st.success(f"✅ Ollama is running! Available models: {', '.join(available_models)}")
+                
+                if embed_model not in str(available_models):
+                    st.error(f"❌ Embedding model '{embed_model}' not found. Please run: `ollama pull {embed_model}`")
+                if gen_model not in str(available_models):
+                    st.error(f"❌ Generation model '{gen_model}' not found. Please run: `ollama pull {gen_model}`")
+            except Exception as e:
+                st.error(f"❌ Cannot connect to Ollama. Make sure it's running: `ollama serve`\nError: {e}")
 
 # Main chat interface
 st.header("💬 Ask Questions")
 
+# Show statistics for last response if available
+if st.session_state.response_stats:
+    last_stats = st.session_state.response_stats[-1]
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("⏱️ Response Time", f"{last_stats['total_time']:.2f}s")
+    with col2:
+        st.metric("🚀 First Token", f"{last_stats['time_to_first_token']:.2f}s")
+    with col3:
+        st.metric("📝 Tokens", last_stats['tokens'])
+    with col4:
+        st.metric("⚡ Speed", f"{last_stats['tokens_per_sec']:.1f} tok/s")
+    st.divider()
+
 # Display chat history
-for message in st.session_state.messages:
+for i, message in enumerate(st.session_state.messages):
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
+        
+        # Show stats for assistant messages
+        if message["role"] == "assistant" and i < len(st.session_state.response_stats):
+            with st.expander("📊 Response Metrics", expanded=False):
+                stats = st.session_state.response_stats[i // 2] if i // 2 < len(st.session_state.response_stats) else None
+                if stats:
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.caption(f"Total time: {stats['total_time']:.2f}s")
+                        st.caption(f"First token: {stats['time_to_first_token']:.2f}s")
+                    with col2:
+                        st.caption(f"Tokens: {stats['tokens']}")
+                        st.caption(f"Speed: {stats['tokens_per_sec']:.1f} tokens/sec")
 
 # Chat input
 if prompt := st.chat_input("Ask a question about your documents..."):
@@ -380,28 +461,111 @@ if prompt := st.chat_input("Ask a question about your documents..."):
     
     # Generate response
     with st.chat_message("assistant"):
-        # Search for relevant documents
-        with st.spinner("Searching documents..."):
-            search_results = search_similar(prompt, table, k=top_k, model=embed_model)
+        # Create placeholder for status updates
+        status_placeholder = st.empty()
+        
+        # Phase 1: Search
+        search_start = time.time()
+        with status_placeholder.container():
+            with st.spinner("🔍 Searching through documents..."):
+                search_results = search_similar(prompt, table, k=top_k, model=embed_model)
+        search_time = time.time() - search_start
         
         if search_results is not None and not search_results.empty:
             # Prepare context
             system_prompt, user_prompt, citations = prepare_context(prompt, search_results)
             
-            # Show sources
-            with st.expander("📖 Sources"):
-                st.markdown(citations)
+            # Show search time and sources
+            status_placeholder.success(f"✅ Found {len(search_results)} relevant chunks in {search_time:.2f}s")
             
-            # Stream response
+            with st.expander("📖 Sources", expanded=True):
+                st.markdown(citations)
+                st.caption(f"Search completed in {search_time:.2f} seconds")
+            
+            # Phase 2: Generate response
             messages = [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
             ]
             
-            response = st.write_stream(stream_chat(messages, model=gen_model))
-            st.session_state.messages.append({"role": "assistant", "content": response})
+            # Create containers for response and metrics
+            response_container = st.empty()
+            metrics_container = st.empty()
+            
+            # Stream response with live metrics
+            response_text = ""
+            token_count = 0
+            start_time = time.time()
+            first_token_time = None
+            
+            with response_container.container():
+                with st.spinner("🤔 Thinking..."):
+                    time.sleep(0.5)  # Brief pause for better UX
+            
+            response_placeholder = st.empty()
+            
+            try:
+                stream = ollama.chat(model=gen_model, messages=messages, stream=True)
+                
+                for chunk in stream:
+                    if "message" in chunk and "content" in chunk["message"]:
+                        content = chunk["message"]["content"]
+                        if content:
+                            if first_token_time is None:
+                                first_token_time = time.time()
+                                status_placeholder.empty()  # Clear status once streaming starts
+                            
+                            response_text += content
+                            token_count += len(content.split())
+                            
+                            # Update response
+                            response_placeholder.markdown(response_text)
+                            
+                            # Update live metrics
+                            elapsed = time.time() - start_time
+                            with metrics_container.container():
+                                cols = st.columns(4)
+                                with cols[0]:
+                                    st.caption(f"⏱️ {elapsed:.1f}s")
+                                with cols[1]:
+                                    st.caption(f"📝 {token_count} tokens")
+                                with cols[2]:
+                                    st.caption(f"⚡ {token_count/elapsed:.1f} tok/s" if elapsed > 0 else "⚡ -- tok/s")
+                                with cols[3]:
+                                    st.caption("🔄 Streaming...")
+                
+                # Final metrics
+                total_time = time.time() - start_time
+                ttft = (first_token_time - start_time) if first_token_time else 0
+                
+                stats = {
+                    "total_time": total_time,
+                    "time_to_first_token": ttft,
+                    "tokens": token_count,
+                    "tokens_per_sec": token_count / total_time if total_time > 0 else 0
+                }
+                
+                # Update final metrics
+                with metrics_container.container():
+                    cols = st.columns(4)
+                    with cols[0]:
+                        st.caption(f"⏱️ {total_time:.2f}s total")
+                    with cols[1]:
+                        st.caption(f"📝 {token_count} tokens")
+                    with cols[2]:
+                        st.caption(f"⚡ {stats['tokens_per_sec']:.1f} tok/s")
+                    with cols[3]:
+                        st.caption("✅ Complete")
+                
+                st.session_state.response_stats.append(stats)
+                st.session_state.messages.append({"role": "assistant", "content": response_text})
+                
+            except Exception as e:
+                st.error(f"Error generating response: {e}")
+                st.session_state.messages.append({"role": "assistant", "content": f"Error: {e}"})
         else:
             no_results_msg = "I couldn't find any relevant information in the indexed documents. Please make sure documents are indexed."
+            status_placeholder.warning("⚠️ No relevant documents found")
             st.warning(no_results_msg)
             st.session_state.messages.append({"role": "assistant", "content": no_results_msg})
 
