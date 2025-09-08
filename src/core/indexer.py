@@ -12,6 +12,7 @@ from .database import DatabaseManager
 from .embeddings import EmbeddingService
 from .deduplication import DocumentHasher, ChunkDeduplicator, IncrementalIndexer
 from .hybrid_search import HybridSearch
+from .token_chunker import TokenChunker, ChunkOptimizer
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,8 @@ class DocumentIndexer:
         embedding_service: Optional[EmbeddingService] = None,
         document_reader: Optional[DocumentReader] = None,
         text_chunker: Optional[TextChunker] = None,
-        document_analyzer: Optional[DocumentAnalyzer] = None
+        document_analyzer: Optional[DocumentAnalyzer] = None,
+        use_token_chunking: bool = False
     ):
         self.settings = get_settings()
         self.db_manager = db_manager or DatabaseManager()
@@ -33,6 +35,15 @@ class DocumentIndexer:
         self.document_reader = document_reader or DocumentReader()
         self.text_chunker = text_chunker or TextChunker()
         self.document_analyzer = document_analyzer or DocumentAnalyzer()
+        
+        # Initialize token-based chunker if enabled
+        self.use_token_chunking = use_token_chunking or self.settings.use_token_chunking
+        if self.use_token_chunking:
+            self.token_chunker = TokenChunker(use_spacy=True)
+            self.chunk_optimizer = ChunkOptimizer()
+        else:
+            self.token_chunker = None
+            self.chunk_optimizer = None
         
         # Initialize deduplication and hybrid search
         self.hasher = DocumentHasher()
@@ -140,11 +151,24 @@ class DocumentIndexer:
                             self._show_detection_results(display_name, doc_type, language, 
                                                         adaptive_chunk, adaptive_overlap)
                             
-                            # Use smart chunking for technical docs
-                            chunks = self.text_chunker.smart_chunk_text(
-                                text, adaptive_chunk, adaptive_overlap, 
-                                preserve_code=(doc_type == "technical")
-                            )
+                            # Use token-based chunking if enabled
+                            if self.use_token_chunking and self.token_chunker:
+                                # Get optimal chunk size for the model
+                                max_tokens = self.chunk_optimizer.get_optimal_chunk_size(
+                                    self.settings.generation_model
+                                )
+                                # Use adaptive chunking based on document type
+                                chunk_results = self.token_chunker.adaptive_chunk(
+                                    text, doc_type=doc_type, max_tokens=max_tokens
+                                )
+                                chunks = [c['text'] for c in chunk_results]
+                                st.caption(f"🎯 Token-based chunking: {len(chunks)} chunks, max {max_tokens} tokens")
+                            else:
+                                # Use smart chunking for technical docs
+                                chunks = self.text_chunker.smart_chunk_text(
+                                    text, adaptive_chunk, adaptive_overlap, 
+                                    preserve_code=(doc_type == "technical")
+                                )
                     else:
                         doc_type = "general"
                         language = "english"

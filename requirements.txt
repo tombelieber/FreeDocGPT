@@ -17,3 +17,12 @@ openpyxl>=3.1.5
 tantivy>=0.21.0
 xxhash>=3.4.1
 faiss-cpu>=1.7.4
+
+# Phase 2: Enhanced Capabilities
+tiktoken>=0.11.0
+sentence-transformers>=5.1.0
+onnxruntime>=1.22.0
+prometheus-client>=0.22.0
+aiofiles>=24.1.0
+diskcache>=5.6.0
+spacy>=3.8.0

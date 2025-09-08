@@ -69,6 +69,17 @@ class Settings:
     batch_size: int = field(default_factory=lambda: int(os.getenv("BATCH_SIZE", "10")))
     max_workers: int = field(default_factory=lambda: int(os.getenv("MAX_WORKERS", "8")))
     
+    # Token chunking settings
+    use_token_chunking: bool = field(default_factory=lambda: os.getenv("USE_TOKEN_CHUNKING", "false").lower() == "true")
+    max_chunk_tokens: int = field(default_factory=lambda: int(os.getenv("MAX_CHUNK_TOKENS", "512")))
+    chunk_overlap_tokens: int = field(default_factory=lambda: int(os.getenv("CHUNK_OVERLAP_TOKENS", "50")))
+    generation_model: str = field(default_factory=lambda: os.getenv("GENERATION_MODEL", "gpt-oss:20b"))
+    
+    # Reranking settings
+    use_reranking: bool = field(default_factory=lambda: os.getenv("USE_RERANKING", "false").lower() == "true")
+    reranker_model: str = field(default_factory=lambda: os.getenv("RERANKER_MODEL", "balanced"))  # fast, balanced, accurate
+    rerank_top_k: int = field(default_factory=lambda: int(os.getenv("RERANK_TOP_K", "5")))
+    
     def get_documents_path(self) -> Path:
         """Get the documents folder path, creating it if necessary."""
         path = Path(self.documents_folder)
