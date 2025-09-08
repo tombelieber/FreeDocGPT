@@ -135,6 +135,140 @@ def read_file_content(file_path: Path) -> str:
         return ""
 
 
+# ---------- Document Analysis & Intelligence ----------
+
+def detect_document_type_llm(text: str, filename: str = "", model: str = GEN_MODEL) -> str:
+    """Use LLM to intelligently detect document type - works for any language."""
+    # Take a sample of the document (first 3000 chars to save tokens)
+    sample = text[:3000] if len(text) > 3000 else text
+    
+    # Create a classification prompt that works for multilingual content
+    classification_prompt = f"""
+    Analyze this document sample and classify it into ONE of these categories:
+    - meeting: Meeting notes, minutes, action items, decisions (会议记录, 會議記錄, 行动项, 決定事項)
+    - prd: Product requirements, specifications, user stories (产品需求文档, 產品需求文檔, 规格说明, 規格說明)
+    - technical: Technical documentation, API docs, code documentation (技术文档, 技術文檔, API文档, 代码说明)
+    - wiki: Knowledge base articles, how-to guides, FAQs (知识库, 知識庫, 操作指南, 常见问题)
+    - general: Other documents that don't fit above categories
+    
+    Document filename: {filename}
+    
+    Document sample:
+    {sample}
+    
+    Respond with ONLY the category name (meeting/prd/technical/wiki/general), nothing else.
+    """
+    
+    try:
+        # Use LLM for classification
+        response = ollama.generate(
+            model=model,
+            prompt=classification_prompt,
+            options={"temperature": 0.1, "num_predict": 10}  # Low temperature for consistent classification
+        )
+        
+        doc_type = response['response'].strip().lower()
+        
+        # Validate response
+        valid_types = ["meeting", "prd", "technical", "wiki", "general"]
+        if doc_type not in valid_types:
+            # Fallback: check for code blocks as a simple heuristic
+            if "```" in text or "def " in text or "function" in text:
+                return "technical"
+            return "general"
+        
+        return doc_type
+        
+    except Exception as e:
+        st.warning(f"LLM classification failed, using fallback: {e}")
+        # Simple fallback based on code blocks
+        if "```" in text:
+            return "technical"
+        return "general"
+
+def detect_language(text: str, model: str = GEN_MODEL) -> str:
+    """Detect the primary language of the document."""
+    sample = text[:500] if len(text) > 500 else text
+    
+    language_prompt = f"""
+    Detect the primary language of this text. Common options:
+    - english
+    - chinese_simplified (简体中文)
+    - chinese_traditional (繁體中文)
+    - mixed (multiple languages)
+    
+    Text: {sample}
+    
+    Respond with ONLY the language identifier, nothing else.
+    """
+    
+    try:
+        response = ollama.generate(
+            model=model,
+            prompt=language_prompt,
+            options={"temperature": 0.1, "num_predict": 20}
+        )
+        return response['response'].strip().lower()
+    except:
+        return "unknown"
+
+def get_adaptive_chunk_params(doc_type: str, language: str = "english") -> Tuple[int, int]:
+    """Get optimal chunk parameters based on document type and language."""
+    # Base parameters by document type
+    params = {
+        "meeting": (800, 100),      # Smaller chunks for discrete items
+        "prd": (1500, 300),         # Larger chunks for requirements
+        "technical": (1800, 400),   # Extra large for code blocks
+        "wiki": (1200, 250),        # Balanced for knowledge articles
+        "general": (1200, 200)      # Balanced default
+    }
+    
+    chunk_size, overlap = params.get(doc_type, (1200, 200))
+    
+    # Adjust for CJK languages (Chinese/Japanese/Korean)
+    # CJK characters are more information-dense, so we can use smaller chunks
+    if "chinese" in language or "japanese" in language or "korean" in language:
+        chunk_size = int(chunk_size * 0.7)  # 30% smaller for CJK
+        overlap = int(overlap * 0.8)  # Slightly less overlap needed
+    elif language == "mixed":
+        # For mixed language documents, use medium sizing
+        chunk_size = int(chunk_size * 0.85)
+    
+    return chunk_size, overlap
+
+def smart_chunk_text(text: str, chunk_chars: int = 1200, overlap: int = 200, preserve_code: bool = True) -> List[str]:
+    """Smart text chunking that preserves code blocks and paragraph boundaries."""
+    if not preserve_code or "```" not in text:
+        # Simple chunking if no code blocks
+        return chunk_text(text, chunk_chars, overlap)
+    
+    chunks = []
+    parts = text.split("```")
+    
+    for i, part in enumerate(parts):
+        if i % 2 == 0:
+            # Regular text - chunk normally
+            if part.strip():
+                text_chunks = chunk_text(part, chunk_chars, overlap)
+                chunks.extend(text_chunks)
+        else:
+            # Code block - try to keep together if not too large
+            code_block = f"```{part}```"
+            if len(code_block) <= chunk_chars * 1.5:  # Allow 50% larger for code blocks
+                chunks.append(code_block)
+            else:
+                # Code block too large, chunk it but preserve markers
+                code_chunks = chunk_text(part, chunk_chars, overlap)
+                for j, code_chunk in enumerate(code_chunks):
+                    if j == 0:
+                        chunks.append(f"```{code_chunk}")
+                    elif j == len(code_chunks) - 1:
+                        chunks.append(f"{code_chunk}```")
+                    else:
+                        chunks.append(code_chunk)
+    
+    return chunks
+
 # ---------- Core Functions ----------
 
 
@@ -215,8 +349,8 @@ def scan_documents_folder() -> List[Path]:
     return sorted(files)
 
 
-def index_documents(files: List[Path], table, chunk_chars: int = 1200, overlap: int = 200):
-    """Index multiple documents into the vector database."""
+def index_documents(files: List[Path], table, chunk_chars: int = 1200, overlap: int = 200, auto_detect: bool = True):
+    """Index multiple documents into the vector database with optional auto-detection."""
     if not files:
         st.warning("No files to index")
         return
@@ -233,13 +367,56 @@ def index_documents(files: List[Path], table, chunk_chars: int = 1200, overlap: 
         return
 
     st.info(f"Indexing {len(new_files)} new document(s)...")
+    
+    # Show document type detection if enabled
+    if auto_detect:
+        st.info("🤖 Auto-detecting document types for optimal processing...")
 
     all_docs = []
+    doc_stats = {"meeting": 0, "prd": 0, "technical": 0, "general": 0}
+    
     for file_path in new_files:
         with st.spinner(f"Processing {file_path.name}..."):
             text = read_file_content(file_path)
             if text and text.strip():
-                chunks = chunk_text(text, chunk_chars, overlap)
+                # Auto-detect document type if enabled
+                if auto_detect:
+                    with st.spinner(f"🤖 Analyzing {file_path.name} with AI..."):
+                        # Detect document type using LLM
+                        doc_type = detect_document_type_llm(text, file_path.name, GEN_MODEL)
+                        
+                        # Detect language
+                        language = detect_language(text, GEN_MODEL)
+                        
+                        # Get adaptive parameters based on type and language
+                        adaptive_chunk, adaptive_overlap = get_adaptive_chunk_params(doc_type, language)
+                        doc_stats[doc_type] = doc_stats.get(doc_type, 0) + 1
+                        
+                        # Show detection results
+                        type_emoji = {
+                            "meeting": "📝",
+                            "prd": "📋", 
+                            "technical": "💻",
+                            "wiki": "📚",
+                            "general": "📄"
+                        }
+                        
+                        lang_emoji = {
+                            "english": "🇬🇧",
+                            "chinese_simplified": "🇨🇳",
+                            "chinese_traditional": "🇹🇼",
+                            "mixed": "🌐",
+                            "unknown": "❓"
+                        }
+                        
+                        st.caption(f"{type_emoji.get(doc_type, '📄')} Detected: {doc_type.upper()} document in {lang_emoji.get(language, '❓')} {language}")
+                        st.caption(f"📊 Using adaptive settings: chunk={adaptive_chunk}, overlap={adaptive_overlap}")
+                        
+                        # Use smart chunking that preserves code blocks
+                        chunks = smart_chunk_text(text, adaptive_chunk, adaptive_overlap, preserve_code=(doc_type == "technical"))
+                else:
+                    chunks = chunk_text(text, chunk_chars, overlap)
+                    
                 for chunk in chunks:
                     all_docs.append({"source": file_path.name, "chunk": chunk, "timestamp": datetime.now().isoformat()})
 
@@ -261,7 +438,13 @@ def index_documents(files: List[Path], table, chunk_chars: int = 1200, overlap: 
                     )
 
                 table.add(rows)
-                st.success(f"✅ Indexed {len(new_files)} document(s) with {len(rows)} chunks")
+                
+                # Show statistics if auto-detect was used
+                if auto_detect and sum(doc_stats.values()) > 0:
+                    st.success(f"✅ Indexed {len(new_files)} document(s) with {len(rows)} chunks")
+                    st.info(f"📊 Document types detected: Meeting Notes ({doc_stats['meeting']}), PRDs ({doc_stats['prd']}), Technical ({doc_stats['technical']}), General ({doc_stats['general']})")
+                else:
+                    st.success(f"✅ Indexed {len(new_files)} document(s) with {len(rows)} chunks")
 
 
 def search_similar(query: str, table, k: int = 5, model: str = EMBED_MODEL):
@@ -352,13 +535,24 @@ with st.sidebar:
     if available_files:
         st.success(f"Found {len(available_files)} document(s)")
 
+        # Auto-detect toggle with enhanced description
+        auto_detect = st.checkbox(
+            "🤖 AI-Powered Auto-Detection",
+            value=True,
+            help="Uses LLM to intelligently detect document types and languages (English/中文/繁體). Works with any language!"
+        )
+        
+        if auto_detect:
+            st.caption("✨ AI will analyze each document to determine optimal processing settings")
+            st.caption("🌐 Supports: English, 简体中文, 繁體中文, and mixed languages")
+        
         # Index button with chunk size from session state
         if st.button("🔄 Index New Documents", type="primary", use_container_width=True):
             table = get_db_table()
             # Use session state values if available, otherwise use defaults
             chunk_size = st.session_state.get('chunk_size', 1200)
             overlap_size = st.session_state.get('overlap_size', 200)
-            index_documents(available_files, table, chunk_chars=chunk_size, overlap=overlap_size)
+            index_documents(available_files, table, chunk_chars=chunk_size, overlap=overlap_size, auto_detect=auto_detect)
             st.rerun()
     else:
         st.warning(f"No documents found in `./{DOCUMENTS_FOLDER}/`")
