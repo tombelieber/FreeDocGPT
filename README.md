@@ -10,8 +10,8 @@ This is a minimal, local-first **Agentic RAG** demo for macOS using:
 ```bash
 brew install ollama
 ollama serve &
-ollama pull gpt-oss-20b
-ollama pull embeddinggemma:2b
+ollama pull gpt-oss:20b
+ollama pull embeddinggemma:300m
 ```
 
 ## 1) Setup Python env
