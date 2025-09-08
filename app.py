@@ -352,10 +352,13 @@ with st.sidebar:
     if available_files:
         st.success(f"Found {len(available_files)} document(s)")
 
-        # Index button
+        # Index button with chunk size from session state
         if st.button("🔄 Index New Documents", type="primary", use_container_width=True):
             table = get_db_table()
-            index_documents(available_files, table)
+            # Use session state values if available, otherwise use defaults
+            chunk_size = st.session_state.get('chunk_size', 1200)
+            overlap_size = st.session_state.get('overlap_size', 200)
+            index_documents(available_files, table, chunk_chars=chunk_size, overlap=overlap_size)
             st.rerun()
     else:
         st.warning(f"No documents found in `./{DOCUMENTS_FOLDER}/`")
@@ -390,38 +393,146 @@ with st.sidebar:
     # Settings
     with st.expander("⚙️ Settings"):
         st.markdown("### 📊 Document Processing Settings")
-
+        
+        # Document Type Presets for Enterprise
+        st.markdown("#### 🎯 Quick Presets for Enterprise Docs")
+        st.caption("Optimized for Notion, Lark, and other enterprise documentation")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            meeting_preset = st.button("📝 Meeting Notes", use_container_width=True, 
+                                      help="Meeting minutes, decisions, action items")
+        with col2:
+            prd_preset = st.button("📋 PRD/Specs", use_container_width=True,
+                                  help="Product requirements, design specs")
+        with col3:
+            tech_preset = st.button("💻 Tech Docs", use_container_width=True,
+                                   help="API docs, code documentation")
+        with col4:
+            wiki_preset = st.button("📚 Wiki/KB", use_container_width=True,
+                                   help="Knowledge base, how-to guides")
+        
+        # Initialize with defaults or session state
+        if 'chunk_size' not in st.session_state:
+            st.session_state.chunk_size = 1200
+        if 'overlap_size' not in st.session_state:
+            st.session_state.overlap_size = 200
+        if 'top_k' not in st.session_state:
+            st.session_state.top_k = 5
+        
+        # Apply presets
+        if meeting_preset:
+            st.session_state.chunk_size = 800
+            st.session_state.overlap_size = 100
+            st.session_state.top_k = 3
+            st.success("📝 Applied Meeting Notes preset: Optimized for capturing individual topics and action items")
+            st.rerun()
+        elif prd_preset:
+            st.session_state.chunk_size = 1500
+            st.session_state.overlap_size = 300
+            st.session_state.top_k = 7
+            st.success("📋 Applied PRD/Specs preset: Larger chunks to keep requirements together")
+            st.rerun()
+        elif tech_preset:
+            st.session_state.chunk_size = 1800
+            st.session_state.overlap_size = 400
+            st.session_state.top_k = 5
+            st.success("💻 Applied Tech Docs preset: Extra large chunks to preserve code blocks")
+            st.rerun()
+        elif wiki_preset:
+            st.session_state.chunk_size = 1200
+            st.session_state.overlap_size = 200
+            st.session_state.top_k = 5
+            st.success("📚 Applied Wiki/KB preset: Balanced for general knowledge articles")
+            st.rerun()
+        
+        st.divider()
+        
+        # Manual controls with session state
         chunk_size = st.slider(
             "📏 **Chunk Size** (characters per segment)",
             500,
             2000,
-            1200,
+            st.session_state.chunk_size,
             step=100,
-            help="How many characters to include in each text segment. Think of it like dividing a book into chapters - smaller chunks (500) mean more but shorter segments, while larger chunks (2000) mean fewer but longer segments. Default (1200) works well for most documents.",
+            key="chunk_slider",
+            help="For Notion/Lark docs with mixed content (text + code), 1500-1800 is recommended.",
         )
-
-        st.info(f"💡 Your documents will be split into segments of ~{chunk_size} characters each")
-
+        st.session_state.chunk_size = chunk_size
+        
         overlap_size = st.slider(
             "🔄 **Overlap Size** (shared text between chunks)",
             0,
             400,
-            200,
+            st.session_state.overlap_size,
             step=50,
-            help="How many characters from the end of one chunk appear at the beginning of the next. This helps maintain context between segments - like having the last paragraph of one chapter repeated at the start of the next. Higher overlap (400) preserves more context but creates redundancy.",
+            key="overlap_slider",
+            help="For documents with code blocks, use 300-400 to maintain context.",
         )
-
-        st.info(f"💡 Each segment will share {overlap_size} characters with its neighbors for better context")
-
+        st.session_state.overlap_size = overlap_size
+        
         top_k = st.slider(
             "🔍 **Search Results** (number of relevant segments)",
             1,
             10,
-            5,
-            help="How many text segments to retrieve when answering your question. More segments (10) provide more context but may include less relevant information. Fewer segments (1-3) are more focused but might miss important details. Default (5) balances thoroughness with relevance.",
+            st.session_state.top_k,
+            key="topk_slider",
+            help="For technical queries use 5-7, for simple Q&A use 3-5.",
         )
-
-        st.info(f"💡 I'll search through your documents and use the {top_k} most relevant segments to answer questions")
+        st.session_state.top_k = top_k
+        
+        # Show current configuration with recommendations
+        st.markdown("#### 📊 Current Configuration")
+        config_cols = st.columns(3)
+        with config_cols[0]:
+            st.metric("Chunk Size", f"{chunk_size} chars")
+            if chunk_size < 1000:
+                st.caption("⚠️ Small: Good for Q&A")
+            elif chunk_size > 1500:
+                st.caption("📦 Large: Good for code")
+            else:
+                st.caption("✅ Balanced")
+        
+        with config_cols[1]:
+            st.metric("Overlap", f"{overlap_size} chars")
+            overlap_pct = (overlap_size / chunk_size * 100) if chunk_size > 0 else 0
+            st.caption(f"{overlap_pct:.0f}% of chunk size")
+        
+        with config_cols[2]:
+            st.metric("Results", f"{top_k} chunks")
+            if top_k <= 3:
+                st.caption("🎯 Focused search")
+            elif top_k >= 7:
+                st.caption("🌐 Comprehensive")
+            else:
+                st.caption("⚖️ Balanced")
+        
+        # Enterprise tips - using info box instead of expander since we're already in an expander
+        st.divider()
+        st.markdown("#### 💡 Best Practices for Enterprise Docs")
+        st.markdown("""
+            **📌 For Notion/Lark Export:**
+            - Export as **Markdown (.md)** for best results
+            - Notion: Settings → Export → Markdown & CSV
+            - Lark/Feishu: More → Export → Markdown
+            
+            **📊 Recommended Settings by Content:**
+            
+            | Document Type | Chunk Size | Overlap | Top-K | Why |
+            |--------------|------------|---------|-------|-----|
+            | Meeting Notes | 600-800 | 100 | 3 | Capture individual decisions |
+            | PRD/Specs | 1500 | 300 | 7 | Keep requirements together |
+            | Tech Docs w/ Code | 1800 | 400 | 5 | Preserve code blocks |
+            | Wiki/How-to | 1200 | 200 | 5 | Balance detail & context |
+            | Mixed Content | 1500 | 300 | 5 | Handle text + code + tables |
+            
+            **🔍 Search Strategy:**
+            - Simple facts: Use fewer chunks (3)
+            - Complex analysis: Use more chunks (7-10)
+            - Code questions: Use larger chunks (1500+)
+            - Meeting action items: Use smaller chunks (800)
+            """)
 
         st.subheader("Models")
 
@@ -535,7 +646,9 @@ if prompt := st.chat_input("Ask a question about your documents..."):
         search_start = time.time()
         with status_placeholder.container():
             with st.spinner("🔍 Searching through documents..."):
-                search_results = search_similar(prompt, table, k=top_k, model=embed_model)
+                # Use session state values for search
+                k_value = st.session_state.get('top_k', 5)
+                search_results = search_similar(prompt, table, k=k_value, model=embed_model)
         search_time = time.time() - search_start
 
         if search_results is not None and not search_results.empty:
