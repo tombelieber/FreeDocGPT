@@ -10,6 +10,8 @@ from ..config import get_settings
 from ..document_processing import DocumentReader, TextChunker, DocumentAnalyzer
 from .database import DatabaseManager
 from .embeddings import EmbeddingService
+from .deduplication import DocumentHasher, ChunkDeduplicator, IncrementalIndexer
+from .hybrid_search import HybridSearch
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +33,26 @@ class DocumentIndexer:
         self.document_reader = document_reader or DocumentReader()
         self.text_chunker = text_chunker or TextChunker()
         self.document_analyzer = document_analyzer or DocumentAnalyzer()
+        
+        # Initialize deduplication and hybrid search
+        self.hasher = DocumentHasher()
+        self.deduplicator = ChunkDeduplicator(
+            threshold=self.settings.dedup_threshold
+        ) if self.settings.dedup_enabled else None
+        self.incremental_indexer = IncrementalIndexer(self.db_manager)
+        
+        # Initialize hybrid search if enabled
+        if self.settings.hybrid_search_enabled:
+            try:
+                self.hybrid_search = HybridSearch(
+                    db_manager=self.db_manager,
+                    embedding_service=self.embedding_service
+                )
+            except Exception as e:
+                logger.warning(f"Failed to initialize hybrid search: {e}")
+                self.hybrid_search = None
+        else:
+            self.hybrid_search = None
     
     def scan_documents_folder(self) -> List[Path]:
         """Scan documents folder for supported files."""
@@ -59,31 +81,30 @@ class DocumentIndexer:
             st.warning("No files to index")
             return
         
-        # Get already indexed files
-        existing_df = self.db_manager.get_indexed_documents()
-        existing_sources = set(existing_df["Document"].values) if not existing_df.empty else set()
+        # Use incremental indexer to filter files
+        new_files, changed_files = self.incremental_indexer.filter_changed_files(files)
         
-        # Get the documents folder path for relative path calculation
+        # Handle changed files (reindex them)
         docs_folder = self.settings.get_documents_path()
-        
-        # Filter out already indexed files - use relative path for comparison
-        new_files = []
-        for f in files:
-            # Get relative path from documents folder
+        for changed_file in changed_files:
             try:
-                rel_path = f.relative_to(docs_folder)
-                if str(rel_path) not in existing_sources:
-                    new_files.append(f)
+                rel_path = changed_file.relative_to(docs_folder)
+                source_key = str(rel_path)
             except ValueError:
-                # File is not in documents folder, use name
-                if f.name not in existing_sources:
-                    new_files.append(f)
+                source_key = changed_file.name
+            
+            # Remove old chunks before reindexing
+            self.incremental_indexer.remove_old_chunks(source_key)
+            st.info(f"♻️ Reindexing changed file: {source_key}")
         
-        if not new_files:
-            st.info("All files are already indexed")
+        # Combine new and changed files for processing
+        files_to_index = new_files + changed_files
+        
+        if not files_to_index:
+            st.info("All files are up to date")
             return
         
-        st.info(f"Indexing {len(new_files)} new document(s)...")
+        st.info(f"Processing {len(new_files)} new and {len(changed_files)} changed document(s)...")
         
         if auto_detect:
             st.info("🤖 Auto-detecting document types for optimal processing...")
@@ -91,7 +112,7 @@ class DocumentIndexer:
         all_docs = []
         doc_stats = {"meeting": 0, "prd": 0, "technical": 0, "wiki": 0, "general": 0}
         
-        for file_path in new_files:
+        for file_path in files_to_index:
             # Get relative path for display and storage
             try:
                 rel_path = file_path.relative_to(docs_folder)
@@ -125,17 +146,32 @@ class DocumentIndexer:
                                 preserve_code=(doc_type == "technical")
                             )
                     else:
+                        doc_type = "general"
+                        language = "english"
                         chunks = self.text_chunker.chunk_text(text, chunk_chars, overlap)
                     
-                    for chunk in chunks:
+                    # Get file metadata
+                    file_hash, file_modified = self.hasher.file_hash(file_path)
+                    
+                    for idx, chunk in enumerate(chunks):
                         all_docs.append({
                             "source": display_name,  # Store the relative path as source
-                            "chunk": chunk, 
-                            "timestamp": datetime.now().isoformat()
+                            "chunk": chunk,
+                            "timestamp": datetime.now().isoformat(),
+                            "content_hash": self.hasher.fast_hash(chunk),
+                            "doc_type": doc_type if auto_detect else "general",
+                            "language": language if auto_detect else "english",
+                            "chunk_index": idx,
+                            "total_chunks": len(chunks),
+                            "file_modified": file_modified
                         })
         
         if all_docs:
-            self._index_chunks(all_docs, doc_stats, auto_detect, len(new_files))
+            # Apply content-based deduplication
+            if self.settings.dedup_enabled and self.deduplicator:
+                all_docs = self.deduplicator.deduplicate_by_content(all_docs)
+            
+            self._index_chunks(all_docs, doc_stats, auto_detect, len(files_to_index))
     
     def _show_detection_results(self, filename: str, doc_type: str, language: str, 
                                chunk_size: int, overlap: int):
@@ -161,17 +197,46 @@ class DocumentIndexer:
             )
             
             if embeddings:
+                # Apply similarity-based deduplication if enabled
+                if self.settings.dedup_enabled and self.deduplicator:
+                    import numpy as np
+                    embeddings_array = np.array(embeddings, dtype=np.float32)
+                    all_docs, embeddings_array = self.deduplicator.deduplicate_by_similarity(
+                        all_docs, embeddings_array
+                    )
+                    embeddings = embeddings_array.tolist() if len(embeddings_array) > 0 else []
+                
                 rows = []
                 for i, (doc, emb) in enumerate(zip(all_docs, embeddings)):
-                    rows.append({
+                    row_data = {
                         "id": int(time.time() * 1e6) + i,
                         "source": doc["source"],
                         "chunk": doc["chunk"],
                         "vector": emb,
                         "timestamp": doc["timestamp"],
-                    })
+                        "content_hash": doc.get("content_hash", ""),
+                        "doc_type": doc.get("doc_type", "general"),
+                        "language": doc.get("language", "english"),
+                        "chunk_index": doc.get("chunk_index", 0),
+                        "total_chunks": doc.get("total_chunks", 1),
+                        "page_number": doc.get("page_number", 0),
+                        "section_header": doc.get("section_header", ""),
+                        "file_modified": doc.get("file_modified", datetime.now().replace(microsecond=0))
+                    }
+                    rows.append(row_data)
                 
-                self.db_manager.add_documents(rows)
+                # Only add documents if we have rows to add
+                if rows:
+                    self.db_manager.add_documents(rows)
+                else:
+                    logger.info("No rows to add to database")
+                
+                # Index in Tantivy for hybrid search
+                if self.hybrid_search and rows:
+                    try:
+                        self.hybrid_search.index_documents(rows)
+                    except Exception as e:
+                        logger.warning(f"Failed to index in Tantivy: {e}")
                 
                 # Show statistics
                 if auto_detect and sum(doc_stats.values()) > 0:

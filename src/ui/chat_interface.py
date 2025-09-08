@@ -67,19 +67,32 @@ def render_chat_interface(search_service: SearchService, chat_service: ChatServi
             with status_placeholder.container():
                 with st.spinner("🔍 Searching through documents..."):
                     k_value = st.session_state.get('top_k', 5)
-                    search_results = search_service.search_similar(prompt, k=k_value)
+                    search_mode = st.session_state.get('search_mode', settings.default_search_mode)
+                    alpha = st.session_state.get('hybrid_alpha', settings.hybrid_alpha)
+                    search_results, search_stats = search_service.search_similar(
+                        prompt, k=k_value, search_mode=search_mode, alpha=alpha
+                    )
             search_time = time.time() - search_start
             
             if search_results is not None and not search_results.empty:
                 # Prepare context
                 system_prompt, user_prompt, citations = search_service.prepare_context(prompt, search_results)
                 
-                # Show search results
-                status_placeholder.success(f"✅ Found {len(search_results)} relevant chunks in {search_time:.2f}s")
+                # Show search results with statistics
+                search_info = f"✅ Found {len(search_results)} relevant chunks in {search_time:.2f}s"
+                if search_stats and 'mode' in search_stats:
+                    if search_stats['mode'] == 'hybrid':
+                        search_info += f" (Hybrid: {search_stats.get('bm25_results', 0)} keyword + {search_stats.get('vector_results', 0)} vector)"
+                    elif search_stats['mode'] == 'keyword':
+                        search_info += f" (Keyword: {search_stats.get('bm25_results', 0)} results)"
+                    else:
+                        search_info += f" (Vector: {search_stats.get('vector_results', 0)} results)"
+                
+                status_placeholder.success(search_info)
                 
                 with st.expander("📖 Sources", expanded=True):
                     st.markdown(citations)
-                    st.caption(f"Search completed in {search_time:.2f} seconds")
+                    st.caption(f"Search completed in {search_time:.2f} seconds using {search_stats.get('mode', 'vector')} mode")
                 
                 # Generate response
                 messages = [

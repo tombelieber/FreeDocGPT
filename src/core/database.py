@@ -39,6 +39,15 @@ class DatabaseManager:
                 pa.field("chunk", pa.string()),
                 pa.field("vector", pa.list_(pa.float32(), 768)),
                 pa.field("timestamp", pa.string()),
+                # Enhanced metadata fields
+                pa.field("content_hash", pa.string()),  # SHA-256 or xxHash
+                pa.field("doc_type", pa.string()),  # meeting, prd, technical, wiki, general
+                pa.field("language", pa.string()),  # english, chinese_simplified, etc.
+                pa.field("chunk_index", pa.int32()),  # Position in document
+                pa.field("total_chunks", pa.int32()),  # Total chunks in document
+                pa.field("page_number", pa.int32()),  # For PDFs
+                pa.field("section_header", pa.string()),  # Section/chapter title
+                pa.field("file_modified", pa.timestamp('ms')),  # File modification time
             ])
             self.table = self.db.create_table(
                 self.settings.table_name, 

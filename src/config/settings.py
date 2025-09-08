@@ -55,6 +55,20 @@ class Settings:
     # Ollama settings
     ollama_host: str = field(default_factory=lambda: os.getenv("OLLAMA_HOST", "http://localhost:11434"))
     
+    # Hybrid search settings
+    hybrid_search_enabled: bool = field(default_factory=lambda: os.getenv("HYBRID_SEARCH_ENABLED", "true").lower() == "true")
+    default_search_mode: str = field(default_factory=lambda: os.getenv("DEFAULT_SEARCH_MODE", "hybrid"))
+    hybrid_alpha: float = field(default_factory=lambda: float(os.getenv("HYBRID_ALPHA", "0.5")))
+    search_result_limit: int = field(default_factory=lambda: int(os.getenv("SEARCH_RESULT_LIMIT", "5")))
+    
+    # Deduplication settings
+    dedup_enabled: bool = field(default_factory=lambda: os.getenv("DEDUP_ENABLED", "true").lower() == "true")
+    dedup_threshold: float = field(default_factory=lambda: float(os.getenv("DEDUP_THRESHOLD", "0.95")))
+    
+    # Performance settings
+    batch_size: int = field(default_factory=lambda: int(os.getenv("BATCH_SIZE", "10")))
+    max_workers: int = field(default_factory=lambda: int(os.getenv("MAX_WORKERS", "8")))
+    
     def get_documents_path(self) -> Path:
         """Get the documents folder path, creating it if necessary."""
         path = Path(self.documents_folder)

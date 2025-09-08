@@ -69,3 +69,44 @@ def render_sidebar(db_manager: DatabaseManager, indexer: DocumentIndexer):
                     st.rerun()
         else:
             st.info("No documents indexed yet")
+        
+        st.divider()
+        
+        # Hybrid Search Controls
+        st.header("🔍 Search Settings")
+        
+        # Search mode selector
+        search_mode = st.radio(
+            "Search Mode",
+            ["hybrid", "vector", "keyword"],
+            index=["hybrid", "vector", "keyword"].index(settings.default_search_mode),
+            help="Choose search strategy: Hybrid combines keyword and vector search"
+        )
+        st.session_state['search_mode'] = search_mode
+        
+        # Hybrid search weight slider (only show for hybrid mode)
+        if search_mode == "hybrid":
+            alpha = st.slider(
+                "Vector vs Keyword Weight",
+                min_value=0.0,
+                max_value=1.0,
+                value=settings.hybrid_alpha,
+                step=0.1,
+                help="0 = Pure keyword search, 1 = Pure vector search, 0.5 = Balanced"
+            )
+            st.session_state['hybrid_alpha'] = alpha
+            
+            # Show weight distribution
+            keyword_weight = int((1 - alpha) * 100)
+            vector_weight = int(alpha * 100)
+            st.caption(f"📝 Keyword: {keyword_weight}% | 🎯 Vector: {vector_weight}%")
+        
+        # Results limit
+        top_k = st.number_input(
+            "Number of Results",
+            min_value=1,
+            max_value=20,
+            value=settings.search_result_limit,
+            help="Number of document chunks to retrieve"
+        )
+        st.session_state['top_k'] = top_k
