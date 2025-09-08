@@ -38,9 +38,14 @@ class DocumentIndexer:
         files = []
         
         for ext in self.settings.supported_extensions:
-            files.extend(folder.glob(f"*{ext}"))
+            # Use rglob to recursively find files in subdirectories
+            files.extend(folder.rglob(f"*{ext}"))
+            # Also check for uppercase extensions
+            files.extend(folder.rglob(f"*{ext.upper()}"))
         
-        return sorted(files)
+        # Remove duplicates and sort
+        unique_files = list(set(files))
+        return sorted(unique_files)
     
     def index_documents(
         self, 
@@ -58,8 +63,21 @@ class DocumentIndexer:
         existing_df = self.db_manager.get_indexed_documents()
         existing_sources = set(existing_df["Document"].values) if not existing_df.empty else set()
         
-        # Filter out already indexed files
-        new_files = [f for f in files if f.name not in existing_sources]
+        # Get the documents folder path for relative path calculation
+        docs_folder = self.settings.get_documents_path()
+        
+        # Filter out already indexed files - use relative path for comparison
+        new_files = []
+        for f in files:
+            # Get relative path from documents folder
+            try:
+                rel_path = f.relative_to(docs_folder)
+                if str(rel_path) not in existing_sources:
+                    new_files.append(f)
+            except ValueError:
+                # File is not in documents folder, use name
+                if f.name not in existing_sources:
+                    new_files.append(f)
         
         if not new_files:
             st.info("All files are already indexed")
@@ -74,14 +92,21 @@ class DocumentIndexer:
         doc_stats = {"meeting": 0, "prd": 0, "technical": 0, "wiki": 0, "general": 0}
         
         for file_path in new_files:
-            with st.spinner(f"Processing {file_path.name}..."):
+            # Get relative path for display and storage
+            try:
+                rel_path = file_path.relative_to(docs_folder)
+                display_name = str(rel_path)
+            except ValueError:
+                display_name = file_path.name
+            
+            with st.spinner(f"Processing {display_name}..."):
                 text = self.document_reader.read_file(file_path)
                 
                 if text and text.strip():
                     if auto_detect:
-                        with st.spinner(f"🤖 Analyzing {file_path.name} with AI..."):
+                        with st.spinner(f"🤖 Analyzing {display_name} with AI..."):
                             # Detect document type and language
-                            doc_type = self.document_analyzer.detect_document_type(text, file_path.name)
+                            doc_type = self.document_analyzer.detect_document_type(text, display_name)
                             language = self.document_analyzer.detect_language(text)
                             
                             # Get adaptive parameters
@@ -91,7 +116,7 @@ class DocumentIndexer:
                             doc_stats[doc_type] = doc_stats.get(doc_type, 0) + 1
                             
                             # Show detection results
-                            self._show_detection_results(file_path.name, doc_type, language, 
+                            self._show_detection_results(display_name, doc_type, language, 
                                                         adaptive_chunk, adaptive_overlap)
                             
                             # Use smart chunking for technical docs
@@ -104,7 +129,7 @@ class DocumentIndexer:
                     
                     for chunk in chunks:
                         all_docs.append({
-                            "source": file_path.name, 
+                            "source": display_name,  # Store the relative path as source
                             "chunk": chunk, 
                             "timestamp": datetime.now().isoformat()
                         })
