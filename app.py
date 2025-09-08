@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 
 import streamlit as st
 from pypdf import PdfReader
+import pyarrow as pa
 
 import ollama
 import lancedb
@@ -68,12 +69,12 @@ def get_db_table(reset: bool = False):
     try:
         tbl = db.open_table(TABLE_NAME)
     except Exception:
-        schema = {
-            "id": int,
-            "source": str,
-            "chunk": str,
-            "vector": lancedb.vector(768),  # Fixed: dimension matches embeddinggemma:300m
-        }
+        schema = pa.schema([
+            pa.field("id", pa.int64()),
+            pa.field("source", pa.string()),
+            pa.field("chunk", pa.string()),
+            pa.field("vector", pa.list_(pa.float32(), 768)),  # Fixed: dimension matches embeddinggemma:300m
+        ])
         tbl = db.create_table(TABLE_NAME, data=[], schema=schema)
     return tbl
 
