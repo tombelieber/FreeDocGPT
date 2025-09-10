@@ -126,6 +126,7 @@ def render_chat_interface(search_service: SearchService, chat_service: ChatServi
                     # Resolve generation model to an installed tag (exact or closest match)
                     available = ollama_status.get("models", []) or []
                     gen_model = settings.gen_model
+                    
                     if gen_model not in available:
                         # Find a case-insensitive contains match
                         match = next((m for m in available if gen_model.lower() in m.lower()), None)
@@ -168,13 +169,19 @@ def render_chat_interface(search_service: SearchService, chat_service: ChatServi
                             stream=True
                         )
                     
+                    chunk_count = 0
                     for chunk in stream:
+                        chunk_count += 1
                         # Handle both Ollama streaming dicts and plain string chunks (vision service)
                         content = None
-                        if isinstance(chunk, dict) and "message" in chunk and "content" in chunk["message"]:
-                            content = chunk["message"]["content"]
+                        if isinstance(chunk, dict):
+                            if "message" in chunk and "content" in chunk["message"]:
+                                content = chunk["message"]["content"]
+                            elif "response" in chunk:  # Alternative response format
+                                content = chunk["response"]
                         elif isinstance(chunk, str):
                             content = chunk
+                        
                         if content:
                             if first_token_time is None:
                                 first_token_time = time.time()
@@ -199,19 +206,93 @@ def render_chat_interface(search_service: SearchService, chat_service: ChatServi
                                 with cols[3]:
                                     st.caption(t("chat.streaming", "🔄 Streaming..."))
                     
-                    # If no content streamed, try a non-streaming fallback once
+                    # If no content streamed, try a non-streaming fallback
                     if not response_text:
                         try:
                             resp = ollama.chat(model=gen_model, messages=messages, stream=False)
-                            fallback_text = resp.get("message", {}).get("content", "") if isinstance(resp, dict) else ""
-                            if fallback_text:
+                            
+                            # Try multiple ways to extract content from response
+                            fallback_text = ""
+                            
+                            # First try object attributes (most likely for Ollama)
+                            try:
+                                if hasattr(resp, 'message') and hasattr(resp.message, 'content'):
+                                    fallback_text = resp.message.content
+                                elif hasattr(resp, 'response'):
+                                    fallback_text = resp.response
+                                elif hasattr(resp, 'content'):
+                                    fallback_text = resp.content
+                            except Exception:
+                                pass
+                            
+                            # If no object attributes worked, try dictionary access
+                            if not fallback_text and isinstance(resp, dict):
+                                if "message" in resp and isinstance(resp["message"], dict) and "content" in resp["message"]:
+                                    fallback_text = resp["message"]["content"]
+                                elif "response" in resp:
+                                    fallback_text = resp["response"]
+                                elif "content" in resp:
+                                    fallback_text = resp["content"]
+                                elif "text" in resp:
+                                    fallback_text = resp["text"]
+                            
+                            # Finally try if it's just a string
+                            elif isinstance(resp, str):
+                                fallback_text = resp
+                            
+                            if fallback_text and fallback_text.strip():
                                 response_text = fallback_text
                                 token_count = len(response_text.split())
                                 response_placeholder.markdown(response_text)
+                                if first_token_time is None:
+                                    first_token_time = time.time()
                             else:
-                                st.warning("Model returned no content. Try a different prompt or model.")
+                                # For debugging, try to get streaming response one more time with different approach
+                                try:
+                                    # Try the streaming approach but collect all chunks first
+                                    st.info("🔄 Trying alternative streaming approach...")
+                                    stream_resp = ollama.chat(model=gen_model, messages=messages, stream=True)
+                                    collected_content = ""
+                                    
+                                    for chunk in stream_resp:
+                                        if isinstance(chunk, dict):
+                                            # Check various possible content locations
+                                            content = None
+                                            if "message" in chunk and isinstance(chunk["message"], dict):
+                                                content = chunk["message"].get("content", "")
+                                            elif "response" in chunk:
+                                                content = chunk["response"]
+                                            elif "content" in chunk:
+                                                content = chunk["content"]
+                                            
+                                            if content:
+                                                collected_content += content
+                                    
+                                    if collected_content.strip():
+                                        fallback_text = collected_content
+                                        response_text = fallback_text
+                                        token_count = len(response_text.split())
+                                        response_placeholder.markdown(response_text)
+                                        if first_token_time is None:
+                                            first_token_time = time.time()
+                                    else:
+                                        # If still no content, show debug info
+                                        st.warning(f"Model completed but returned no visible content. Response format: {type(resp).__name__}")
+                                        st.code(f"Raw response (first 500 chars): {str(resp)[:500]}...")
+                                        response_text = "The model processed your request but returned an empty response. This might be due to the strict RAG prompt filtering. Try asking a question about the indexed documents."
+                                        response_placeholder.markdown(response_text)
+                                        
+                                except Exception as stream_err:
+                                    st.warning(f"Alternative streaming also failed: {stream_err}")
+                                    st.code(f"Original response: {str(resp)[:300]}...")
+                                    response_text = "Unable to get response from model. Please check Ollama connection and try again."
+                                    response_placeholder.markdown(response_text)
+                                
                         except Exception as fe:
-                            st.error(t("chat.error_generating", "Error generating response: {err}", err=fe))
+                            error_msg = f"Error communicating with model: {str(fe)}"
+                            st.error(error_msg)
+                            response_text = error_msg
+                            response_placeholder.markdown(response_text)
 
                     # Final metrics
                     total_time = time.time() - start_time
