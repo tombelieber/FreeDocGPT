@@ -133,6 +133,20 @@ def render_sidebar(db_manager: DatabaseManager, indexer: DocumentIndexer):
             help=t("search.results_help", "Number of document chunks to retrieve")
         )
         st.session_state['top_k'] = top_k
+        
+        # Thinking Mode Toggle
+        st.divider()
+        thinking_mode = st.checkbox(
+            "🤔 **AI Thinking Mode**",
+            value=st.session_state.get('thinking_mode', True),
+            help="Show AI's reasoning process before the final answer (like ChatGPT thinking)"
+        )
+        st.session_state['thinking_mode'] = thinking_mode
+        
+        if thinking_mode:
+            st.caption("✨ AI will show its thought process and reasoning")
+        else:
+            st.caption("💨 Faster responses without thinking display")
 
         st.divider()
         # Language selector
