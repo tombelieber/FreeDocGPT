@@ -160,6 +160,18 @@ class EmbeddingCache:
         self.cache.close()
 
 
+# Shared cache instance to avoid duplicate in-memory caches and logs
+_shared_embedding_cache: Optional[EmbeddingCache] = None
+
+
+def get_shared_embedding_cache() -> EmbeddingCache:
+    """Return a process-wide shared EmbeddingCache instance."""
+    global _shared_embedding_cache
+    if _shared_embedding_cache is None:
+        _shared_embedding_cache = EmbeddingCache()
+    return _shared_embedding_cache
+
+
 class SearchResultCache:
     """Cache for search results to speed up repeated queries."""
     

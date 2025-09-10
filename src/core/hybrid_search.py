@@ -265,11 +265,14 @@ class HybridSearch:
             
             # Query the table
             results = table.to_pandas()
-            filtered = results[results['id'].isin(id_list)]
+            # Drop heavy vector column to minimize memory footprint for ordering operations
+            if isinstance(results, pd.DataFrame):
+                results = results.drop(columns=["vector"], errors="ignore")
+            filtered = results[results['id'].isin(id_list)].copy()
             
             # Sort by the order of doc_ids
             id_order = {int(doc_id): i for i, doc_id in enumerate(doc_ids) if doc_id.isdigit()}
-            filtered['order'] = filtered['id'].map(id_order)
+            filtered.loc[:, 'order'] = filtered['id'].map(id_order)
             filtered = filtered.sort_values('order').drop('order', axis=1)
             
             return filtered

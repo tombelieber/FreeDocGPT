@@ -30,12 +30,23 @@ logger = setup_logging(log_level="INFO")
 
 
 def initialize_services():
-    """Initialize all required services."""
+    """Initialize all required services (cached across reruns)."""
+    # Reuse existing instances to avoid duplicate initialization and log spam
+    if 'services' in st.session_state:
+        svc = st.session_state['services']
+        return svc['db_manager'], svc['indexer'], svc['search_service'], svc['chat_service']
+
     db_manager = DatabaseManager()
     indexer = DocumentIndexer(db_manager=db_manager)
     search_service = SearchService(db_manager=db_manager)
     chat_service = ChatService()
-    
+
+    st.session_state['services'] = {
+        'db_manager': db_manager,
+        'indexer': indexer,
+        'search_service': search_service,
+        'chat_service': chat_service,
+    }
     return db_manager, indexer, search_service, chat_service
 
 

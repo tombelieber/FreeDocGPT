@@ -4,6 +4,7 @@ import ollama
 import streamlit as st
 
 from ..config import get_settings
+from ..utils import check_ollama_status
 from ..core import SearchService, ChatService, VisionChatService
 from ..document_processing import VisionDocumentReader
 from .i18n import t
@@ -118,6 +119,22 @@ def render_chat_interface(search_service: SearchService, chat_service: ChatServi
                 response_placeholder = st.empty()
                 
                 try:
+                    # Pre-flight: ensure Ollama is reachable and model is available
+                    ollama_status = check_ollama_status()
+                    if not ollama_status.get("connected"):
+                        raise RuntimeError("Cannot connect to Ollama. Please start it with `ollama serve`.")
+                    # Resolve generation model to an installed tag (exact or closest match)
+                    available = ollama_status.get("models", []) or []
+                    gen_model = settings.gen_model
+                    if gen_model not in available:
+                        # Find a case-insensitive contains match
+                        match = next((m for m in available if gen_model.lower() in m.lower()), None)
+                        if match:
+                            gen_model = match
+                        else:
+                            raise RuntimeError(
+                                f"Generation model '{settings.gen_model}' not found in Ollama. Installed: {', '.join(available) or 'none'}"
+                            )
                     # If the user likely asks about visuals and we have PDF sources, use vision-enhanced flow
                     is_visual_query = any(k in prompt.lower() for k in [
                         "image", "chart", "graph", "diagram", "figure", "picture", "visual", "table"
@@ -146,7 +163,7 @@ def render_chat_interface(search_service: SearchService, chat_service: ChatServi
                     # Fallback to normal text streaming if no vision stream
                     if stream is None:
                         stream = ollama.chat(
-                            model=settings.gen_model,
+                            model=gen_model,
                             messages=messages,
                             stream=True
                         )
@@ -182,6 +199,20 @@ def render_chat_interface(search_service: SearchService, chat_service: ChatServi
                                 with cols[3]:
                                     st.caption(t("chat.streaming", "🔄 Streaming..."))
                     
+                    # If no content streamed, try a non-streaming fallback once
+                    if not response_text:
+                        try:
+                            resp = ollama.chat(model=gen_model, messages=messages, stream=False)
+                            fallback_text = resp.get("message", {}).get("content", "") if isinstance(resp, dict) else ""
+                            if fallback_text:
+                                response_text = fallback_text
+                                token_count = len(response_text.split())
+                                response_placeholder.markdown(response_text)
+                            else:
+                                st.warning("Model returned no content. Try a different prompt or model.")
+                        except Exception as fe:
+                            st.error(t("chat.error_generating", "Error generating response: {err}", err=fe))
+
                     # Final metrics
                     total_time = time.time() - start_time
                     ttft = (first_token_time - start_time) if first_token_time else 0
@@ -207,6 +238,19 @@ def render_chat_interface(search_service: SearchService, chat_service: ChatServi
                     
                     st.session_state.response_stats.append(stats)
                     st.session_state.messages.append({"role": "assistant", "content": response_text})
+
+                    # Trim chat history to configured limit (keep last N turns)
+                    try:
+                        history_limit = settings.chat_history_limit if hasattr(settings, "chat_history_limit") else 20
+                        # messages are user/assistant pairs; keep last 2*limit entries
+                        max_msgs = max(2 * int(history_limit), 2)
+                        if len(st.session_state.messages) > max_msgs:
+                            st.session_state.messages = st.session_state.messages[-max_msgs:]
+                        if len(st.session_state.response_stats) > history_limit:
+                            st.session_state.response_stats = st.session_state.response_stats[-history_limit:]
+                    except Exception:
+                        # Non-fatal; ignore trimming errors
+                        pass
                     
                 except Exception as e:
                     st.error(t("chat.error_generating", "Error generating response: {err}", err=e))

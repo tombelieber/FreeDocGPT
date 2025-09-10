@@ -10,7 +10,7 @@ from ..config import get_settings
 from ..document_processing import DocumentReader, TextChunker, DocumentAnalyzer
 from .database import DatabaseManager
 from .embeddings import EmbeddingService
-from .cache import CachedEmbeddingService
+from .cache import CachedEmbeddingService, get_shared_embedding_cache
 from .deduplication import DocumentHasher, ChunkDeduplicator, IncrementalIndexer
 from .hybrid_search import HybridSearch
 from .token_chunker import TokenChunker, ChunkOptimizer
@@ -33,8 +33,8 @@ class DocumentIndexer:
         self.settings = get_settings()
         self.db_manager = db_manager or DatabaseManager()
         base_embedding = embedding_service or EmbeddingService()
-        # Enable embedding caching by default for faster re-indexing and repeated runs
-        self.embedding_service = CachedEmbeddingService(base_embedding)
+        # Enable embedding caching by default (shared cache to avoid duplicates/log spam)
+        self.embedding_service = CachedEmbeddingService(base_embedding, cache=get_shared_embedding_cache())
         self.document_reader = document_reader or DocumentReader()
         self.text_chunker = text_chunker or TextChunker()
         self.document_analyzer = document_analyzer or DocumentAnalyzer()

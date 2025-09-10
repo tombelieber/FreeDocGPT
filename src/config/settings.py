@@ -83,6 +83,17 @@ class Settings:
     use_reranking: bool = field(default_factory=lambda: os.getenv("USE_RERANKING", "false").lower() == "true")
     reranker_model: str = field(default_factory=lambda: os.getenv("RERANKER_MODEL", "balanced"))  # fast, balanced, accurate
     rerank_top_k: int = field(default_factory=lambda: int(os.getenv("RERANK_TOP_K", "5")))
+
+    # Chat settings
+    chat_history_limit: int = field(default_factory=lambda: int(os.getenv("CHAT_HISTORY_LIMIT", "20")))
+
+    # Ollama/network timeouts (seconds)
+    ollama_connect_timeout: float = field(default_factory=lambda: float(os.getenv("OLLAMA_CONNECT_TIMEOUT", "5.0")))
+    ollama_read_timeout: float = field(default_factory=lambda: float(os.getenv("OLLAMA_READ_TIMEOUT", "60.0")))
+    ollama_status_timeout: float = field(default_factory=lambda: float(os.getenv("OLLAMA_STATUS_TIMEOUT", "30.0")))
+    # Note: chat streaming uses Ollama's client which does not expose timeouts;
+    # this value is for future UI hints/fallbacks
+    first_token_timeout: float = field(default_factory=lambda: float(os.getenv("FIRST_TOKEN_TIMEOUT", "30.0")))
     
     def get_documents_path(self) -> Path:
         """Get the documents folder path, creating it if necessary."""

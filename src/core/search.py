@@ -7,7 +7,7 @@ import streamlit as st
 
 from .database import DatabaseManager
 from .embeddings import EmbeddingService
-from .cache import CachedEmbeddingService
+from .cache import CachedEmbeddingService, get_shared_embedding_cache
 from .hybrid_search import HybridSearch
 from .reranker import Reranker, HybridReranker
 
@@ -27,8 +27,8 @@ class SearchService:
     ):
         self.db_manager = db_manager or DatabaseManager()
         base_embedding = embedding_service or EmbeddingService()
-        # Enable embedding caching by default for query embeddings
-        self.embedding_service = CachedEmbeddingService(base_embedding)
+        # Enable embedding caching by default for query embeddings (shared cache instance)
+        self.embedding_service = CachedEmbeddingService(base_embedding, cache=get_shared_embedding_cache())
         self.use_hybrid = use_hybrid
         self.use_reranking = use_reranking
         # Defer loading the system prompt until it is actually needed

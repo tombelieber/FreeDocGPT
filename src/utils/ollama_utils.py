@@ -21,7 +21,12 @@ def check_ollama_status() -> Dict[str, any]:
     }
     
     try:
-        response = requests.get(f"{settings.ollama_host}/api/tags")
+        # Generous, configurable timeouts for slower machines
+        timeout = (
+            max(0.1, float(getattr(settings, "ollama_connect_timeout", 5.0))),
+            max(1.0, float(getattr(settings, "ollama_read_timeout", 60.0)))
+        )
+        response = requests.get(f"{settings.ollama_host}/api/tags", timeout=timeout)
         
         if response.status_code == 200:
             models_data = response.json()
@@ -45,6 +50,8 @@ def check_ollama_status() -> Dict[str, any]:
         else:
             status["error"] = f"HTTP {response.status_code}"
             
+    except requests.Timeout:
+        status["error"] = "Ollama status request timed out"
     except requests.ConnectionError:
         status["error"] = "Cannot connect to Ollama"
     except Exception as e:
