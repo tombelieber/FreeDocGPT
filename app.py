@@ -41,13 +41,19 @@ def initialize_services():
 
 def main():
     """Main application entry point."""
-    # Configure page
+    # Configure page: must be the first Streamlit call
     settings = get_settings()
+    st.set_page_config(
+        page_title=settings.page_title,
+        page_icon=settings.page_icon,
+        layout=settings.layout
+    )
+
     # Initialize locale once per session: URL param -> saved file -> default
     if "locale" not in st.session_state:
-        # 1) URL query param
+        # 1) URL query param (use modern API)
         try:
-            params = st.experimental_get_query_params()
+            params = st.query_params  # Mapping[str, str | list[str]]
         except Exception:
             params = {}
         qp_locale = None
@@ -90,11 +96,6 @@ def main():
                 """,
                 height=0,
             )
-    st.set_page_config(
-        page_title=settings.page_title,
-        page_icon=settings.page_icon,
-        layout=settings.layout
-    )
     
     # Title and description
     st.title(settings.page_title)

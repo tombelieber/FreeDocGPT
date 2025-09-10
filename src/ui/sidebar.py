@@ -151,7 +151,8 @@ def render_sidebar(db_manager: DatabaseManager, indexer: DocumentIndexer):
         if choice != current:
             set_locale(choice)
             try:
-                st.experimental_set_query_params(locale=choice)
+                # Use modern query params API
+                st.query_params["locale"] = choice
             except Exception:
                 pass
             try:
