@@ -7,6 +7,7 @@ import streamlit as st
 
 from .database import DatabaseManager
 from .embeddings import EmbeddingService
+from .cache import CachedEmbeddingService
 from .hybrid_search import HybridSearch
 from .reranker import Reranker, HybridReranker
 
@@ -25,7 +26,9 @@ class SearchService:
         reranker_model: str = "balanced"
     ):
         self.db_manager = db_manager or DatabaseManager()
-        self.embedding_service = embedding_service or EmbeddingService()
+        base_embedding = embedding_service or EmbeddingService()
+        # Enable embedding caching by default for query embeddings
+        self.embedding_service = CachedEmbeddingService(base_embedding)
         self.use_hybrid = use_hybrid
         self.use_reranking = use_reranking
         # Defer loading the system prompt until it is actually needed

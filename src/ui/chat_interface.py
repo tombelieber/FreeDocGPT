@@ -4,7 +4,8 @@ import ollama
 import streamlit as st
 
 from ..config import get_settings
-from ..core import SearchService, ChatService
+from ..core import SearchService, ChatService, VisionChatService
+from ..document_processing import VisionDocumentReader
 from .i18n import t
 
 
@@ -117,38 +118,69 @@ def render_chat_interface(search_service: SearchService, chat_service: ChatServi
                 response_placeholder = st.empty()
                 
                 try:
-                    stream = ollama.chat(
-                        model=settings.gen_model,
-                        messages=messages,
-                        stream=True
-                    )
+                    # If the user likely asks about visuals and we have PDF sources, use vision-enhanced flow
+                    is_visual_query = any(k in prompt.lower() for k in [
+                        "image", "chart", "graph", "diagram", "figure", "picture", "visual", "table"
+                    ])
+                    stream = None
+                    if is_visual_query:
+                        # Try to extract visuals from the first PDF in results
+                        try:
+                            docs_base = settings.get_documents_path()
+                            pdf_path = None
+                            for src in search_results['source'].tolist():
+                                if str(src).lower().endswith('.pdf'):
+                                    candidate = docs_base / str(src)
+                                    if candidate.exists():
+                                        pdf_path = candidate
+                                        break
+                            if pdf_path is not None:
+                                vreader = VisionDocumentReader()
+                                pdf_bytes = pdf_path.read_bytes()
+                                pdf_content = vreader.read_pdf_with_vision(pdf_bytes)
+                                vchat = VisionChatService()
+                                stream = vchat.stream_chat_with_context(messages, pdf_content=pdf_content)
+                        except Exception:
+                            # Fallback to text model streaming if anything fails
+                            stream = None
+                    # Fallback to normal text streaming if no vision stream
+                    if stream is None:
+                        stream = ollama.chat(
+                            model=settings.gen_model,
+                            messages=messages,
+                            stream=True
+                        )
                     
                     for chunk in stream:
-                        if "message" in chunk and "content" in chunk["message"]:
+                        # Handle both Ollama streaming dicts and plain string chunks (vision service)
+                        content = None
+                        if isinstance(chunk, dict) and "message" in chunk and "content" in chunk["message"]:
                             content = chunk["message"]["content"]
-                            if content:
-                                if first_token_time is None:
-                                    first_token_time = time.time()
-                                    status_placeholder.empty()
-                                
-                                response_text += content
-                                token_count += len(content.split())
-                                
-                                # Update response
-                                response_placeholder.markdown(response_text)
-                                
-                                # Update live metrics
-                                elapsed = time.time() - start_time
-                                with metrics_container.container():
-                                    cols = st.columns(4)
-                                    with cols[0]:
-                                        st.caption(f"⏱️ {elapsed:.1f}s")
-                                    with cols[1]:
-                                        st.caption(f"📝 {token_count}")
-                                    with cols[2]:
-                                        st.caption(f"⚡ {token_count/elapsed:.1f} tok/s" if elapsed > 0 else "⚡ -- tok/s")
-                                    with cols[3]:
-                                        st.caption(t("chat.streaming", "🔄 Streaming..."))
+                        elif isinstance(chunk, str):
+                            content = chunk
+                        if content:
+                            if first_token_time is None:
+                                first_token_time = time.time()
+                                status_placeholder.empty()
+                            
+                            response_text += content
+                            token_count += len(content.split())
+                            
+                            # Update response
+                            response_placeholder.markdown(response_text)
+                            
+                            # Update live metrics
+                            elapsed = time.time() - start_time
+                            with metrics_container.container():
+                                cols = st.columns(4)
+                                with cols[0]:
+                                    st.caption(f"⏱️ {elapsed:.1f}s")
+                                with cols[1]:
+                                    st.caption(f"📝 {token_count}")
+                                with cols[2]:
+                                    st.caption(f"⚡ {token_count/elapsed:.1f} tok/s" if elapsed > 0 else "⚡ -- tok/s")
+                                with cols[3]:
+                                    st.caption(t("chat.streaming", "🔄 Streaming..."))
                     
                     # Final metrics
                     total_time = time.time() - start_time
