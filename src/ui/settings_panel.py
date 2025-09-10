@@ -12,8 +12,8 @@ def render_settings_panel(search_service=None):
         st.markdown("### 📊 Document Processing Settings")
         
         # Document Type Presets
-        st.markdown("#### 🎯 Quick Presets for Enterprise Docs")
-        st.caption("Optimized for Notion, Lark, and other enterprise documentation")
+        st.markdown("#### 🎯 Quick Presets")
+        st.caption("Optimized for common docs: Notion/Lark exports, PDFs, tech docs")
         
         col1, col2, col3, col4 = st.columns(4)
         

@@ -1,187 +1,82 @@
-# 🚀 Enterprise Document Intelligence System
-**AI-Powered Document Search & Q&A for Corporate Knowledge Management**
+# 📚 FreeDocBuddy（免費文件夥伴）
+Your free, local document buddy — read, search, ask, and learn from multiple files without cloud costs or API keys.
 
-Transform your company's scattered documentation into an intelligent, searchable knowledge base. Ask questions in natural language and get instant, accurate answers from your documents.
+> 零成本、本地運行、私密安全。把檔案丟進 `documents/`，就能閱讀、搜尋、問答、整理、學習。
 
-> 🎯 **Demo Application** | Ready for enterprise deployment as a 常駐 service
+## 💡 What It Does
 
-## 🎯 What This Does
+- **Multi‑file made easy**: Drop many files in `documents/`, index once, ask anything.
+- **Ask your documents**: Chat in natural language and get answers with sources.
+- **Read & Learn**: Summaries, explanations, and step‑by‑step guidance from your files.
+- **Search that understands**: Hybrid (keyword + vector) search for better results.
+- **Local & free**: Runs entirely on your Mac with Ollama — no API keys.
+- **Vision support**: Understands PDFs with images, charts, and screenshots (via LLaVA).
 
-This system creates an intelligent layer over your company's documentation (Notion, Lark, PDFs, etc.) enabling:
-- **Instant Knowledge Discovery**: Find information across thousands of documents in seconds
-- **Natural Language Q&A**: Ask questions like "What were the Q3 action items?" or "How do I configure the API?"
-- **Smart Document Processing**: Automatically adapts to different document types (meeting notes, PRDs, technical docs)
-- **Source Attribution**: Always know where answers come from with direct citations
+## 🚀 Quick Start
 
-## 💡 Business Value & Potential
-
-When deployed as a company-wide 常駐 service, this tool can:
-- **Boost Productivity**: Reduce time spent searching for documentation by 80%
-- **Accelerate Onboarding**: New employees can instantly access institutional knowledge
-- **Enable Feature Development**: Developers quickly locate specs, requirements, and technical docs
-- **Improve Decision Making**: Surface relevant meeting notes, decisions, and action items instantly
-- **Break Down Silos**: Make knowledge accessible across teams and departments
-
-## ✨ Key Features (v2.0)
-
-### 🤖 Intelligent Document Processing
-- **Auto-Detection**: Automatically identifies document types (meeting notes, PRDs, technical docs, wikis)
-- **Adaptive Chunking**: Optimizes processing based on document type for better search results
-- **Smart Context Preservation**: Maintains code blocks, tables, and formatting integrity
-
-### 📊 Enterprise-Ready Features
-- **Multi-Format Support**: 15+ file formats including PDF, Word, Markdown, HTML, CSV, Excel, JSON
-- **Notion/Lark Integration**: Optimized for enterprise documentation exports
-- **Configurable Processing**: Fine-tune chunk sizes, overlap, and search parameters
-- **Document Type Presets**: One-click optimization for different content types
-
-### 🔍 Advanced Search & Analytics
-- **Vector Similarity Search**: Find semantically related content, not just keywords
-- **Real-time Performance Metrics**: Token generation speed, response times, and throughput
-- **Source Tracking**: Complete audit trail of information sources
-- **Document Statistics**: Track indexed content, chunk distribution, and coverage
-
-## 🚀 Quick Start Testing Guide
-
-### Step 1: Install Prerequisites (macOS)
-
+### 1) Install prerequisites (macOS)
 ```bash
-# Install Ollama (local LLM runtime)
-brew install ollama
-
-# Start Ollama service
-ollama serve &
-
-# Pull required models (this may take 10-15 minutes)
-ollama pull gpt-oss:20b        # Main language model (20B parameters)
-ollama pull embeddinggemma:300m # Embedding model for search
+brew install ollama           # Local LLM runtime
+ollama serve &                # Start Ollama
+ollama pull gpt-oss:20b      # QA / chat model
+ollama pull embeddinggemma:300m  # Embedding model for search
 ```
 
-### Step 2: Setup Python Environment
-
+### 2) Setup Python env
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd agentic_rag_gptoss_mac
-
-# Create virtual environment
-python3 -m venv .venv
-source .venv/bin/activate
-
-# Install dependencies
+python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### Step 3: Prepare Test Documents
-
+### 3) Add documents
 ```bash
-# Create documents folder
 mkdir -p documents
-
-# Add sample documents (any of these formats):
-# - Export from Notion/Lark as Markdown
-# - Add PDFs, Word docs, or text files
-# - Include meeting notes, PRDs, or technical docs
+# Put your PDFs, Word, Markdown, HTML, CSV, TXT… here
 ```
 
-### Step 4: Run the Application
-
+### 4) Run the app
 ```bash
-# Start the Streamlit app
 streamlit run app.py
-
-# Open browser to http://localhost:8501
+# Open http://localhost:8501
 ```
 
-### Step 5: Test the System
+### 5) Use it
+- Sidebar → "🔄 Index New Documents" to index files
+- Ask: “幫我總結這份合約重點？” / “Explain the API auth section.”
+- See sources and tweak search settings as needed
 
-1. **Index Documents**
-   - Click "🔄 Index New Documents" in sidebar
-   - Watch as system auto-detects document types
-   - View indexing statistics
+## ✨ Features
 
-2. **Ask Questions**
-   - Try: "What are the main features?"
-   - Try: "What decisions were made in the last meeting?"
-   - Try: "How do I implement the authentication module?"
+- **Formats**: PDF, DOCX/DOC, MD, HTML, CSV, XLSX/XLS, JSON, TXT, LOG, RTF, XML, YAML
+- **Presets**: Meeting notes, PRD/specs, tech docs, wiki/KB
+- **Controls**: Chunk size, overlap, results count, hybrid weight
+- **Metrics**: Response time, first token, tokens/sec
+- **Index management**: Reset/clear index when needed
 
-3. **Optimize for Your Content**
-   - Use presets: Meeting Notes, PRD/Specs, Tech Docs, Wiki
-   - Fine-tune chunk sizes and overlap
-   - Adjust search depth (Top-K results)
-
-## 📁 Supported Document Formats
-
-| Category | Formats | Best For |
-|----------|---------|----------|
-| **Documents** | PDF, DOCX, DOC | Reports, specifications, manuals |
-| **Knowledge Base** | MD, Markdown | Notion/Lark exports, wikis |
-| **Web Content** | HTML, HTM | Web documentation, archived pages |
-| **Structured Data** | CSV, XLSX, XLS | Data tables, inventories |
-| **Configuration** | JSON, XML, YAML | Config files, API specs |
-| **Plain Text** | TXT, LOG, RTF | Meeting notes, logs |
-
-## ⚙️ Configuration & Optimization
-
-### Environment Variables (.env)
+## ⚙️ Configuration (.env optional)
 ```env
-DB_DIR=.lancedb                    # Vector database location
-TABLE_NAME=docs                    # Database table name
-EMBED_MODEL=embeddinggemma:300m    # Embedding model for search
-GEN_MODEL=gpt-oss:20b              # Generation model for answers
-DOCUMENTS_FOLDER=documents         # Document storage folder
+DB_DIR=.lancedb
+TABLE_NAME=docs
+EMBED_MODEL=embeddinggemma:300m
+GEN_MODEL=gpt-oss:20b
+DOCUMENTS_FOLDER=documents
 ```
 
-### Document Processing Presets
+## Tips
 
-| Document Type | Chunk Size | Overlap | Use Case |
-|--------------|------------|---------|----------|
-| **Meeting Notes** | 800 | 100 | Capture individual decisions & action items |
-| **PRD/Specs** | 1500 | 300 | Keep requirements & features together |
-| **Technical Docs** | 1800 | 400 | Preserve code blocks & examples |
-| **Wiki/KB** | 1200 | 200 | Balance detail & searchability |
+- Notion/飛書(Feishu/Lark) 請匯出為 Markdown 再放進 `documents/`。
+- 技術文件可把 chunk 設大一些（1500–1800），Overlap 300–400。
+- 找不到答案時：多放幾份檔案或提高 Top‑K。
 
-## 🎯 Testing Checklist
+## Testing (optional)
+- Core tests: `python test_indexing.py`, `python test_hybrid_search.py`
+- Phase 2: `python test_phase2_simple.py`, `python test_phase2_features.py`
+- Vision: `python test_vision.py`（需在 `documents/` 放一份 PDF）
 
-- [ ] **Document Ingestion**: Add 5-10 diverse documents to `documents/` folder
-- [ ] **Auto-Detection**: Enable auto-detect and verify document type identification
-- [ ] **Search Accuracy**: Ask 10 different questions and verify answer relevance
-- [ ] **Performance**: Monitor token generation speed (should be >20 tokens/sec)
-- [ ] **Source Attribution**: Verify citations point to correct documents
-- [ ] **Different Formats**: Test with PDFs, Markdown, Word docs, and CSVs
-- [ ] **Preset Optimization**: Try different presets for various document types
-- [ ] **Clear & Re-index**: Test index management capabilities
+## Privacy & Requirements
+- 100% 本地運行，資料不出機器；無需雲端 API 金鑰。
+- 建議 16GB+ RAM；模型下載約需 10–15GB 空間。
 
-## 📈 Performance Metrics
+—
 
-The system provides real-time metrics:
-- **Response Time**: Total time to generate answer
-- **First Token Latency**: Time to start streaming response
-- **Token Generation**: Speed in tokens per second
-- **Search Performance**: Document retrieval time
-
-## 🚀 Future Extensibility
-
-If approved for production deployment:
-- **Multi-tenant Support**: Separate knowledge bases per team/department
-- **Access Control**: Role-based document access
-- **API Integration**: RESTful API for programmatic access
-- **Slack/Teams Integration**: Query documents directly from chat
-- **Continuous Learning**: Feedback loop for answer improvement
-- **Multi-language Support**: Process documents in multiple languages
-- **Cloud Deployment**: Scale to handle enterprise-wide usage
-
-## 🔒 Privacy & Security
-
-- **100% Local Processing**: All data stays on your infrastructure
-- **No External APIs**: Uses local Ollama models, no data leaves your network
-- **Audit Trail**: Complete tracking of document access and queries
-- **Configurable Retention**: Control how long indexed data is retained
-
-## 💬 Support & Feedback
-
-This is a demonstration application showcasing the potential of AI-powered document intelligence for enterprise use. For questions, feature requests, or production deployment discussions, please contact the development team.
-
----
-
-**Note**: This demo requires ~15GB disk space for models and runs optimally with 16GB+ RAM.
+Made with love for everyone who wants AI‑powered document help without paying for the cloud.

@@ -48,7 +48,7 @@ def main():
     
     # Title and description
     st.title(settings.page_title)
-    st.markdown("Simply add documents to the `documents` folder and start asking questions!")
+    st.markdown("Free, local document buddy — drop files in `documents/` and start asking questions.")
     
     # Initialize services
     db_manager, indexer, search_service, chat_service = initialize_services()

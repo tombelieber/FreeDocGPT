@@ -48,7 +48,7 @@ class Settings:
     })
     
     # UI settings
-    page_title: str = "📚 Document Q&A System"
+    page_title: str = "📚 FreeDocBuddy（免費文件夥伴）"
     page_icon: str = "📚"
     layout: str = "wide"
     
