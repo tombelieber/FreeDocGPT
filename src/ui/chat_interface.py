@@ -149,7 +149,7 @@ def render_chat_interface(search_service: SearchService, chat_service: ChatServi
                 ]
                 
                 # Check if thinking mode is enabled
-                thinking_enabled = st.session_state.get('thinking_mode', True)
+                thinking_enabled = st.session_state.get('thinking_mode', False)
                 
                 # Initialize variables
                 response_text = ""
@@ -185,10 +185,12 @@ def render_chat_interface(search_service: SearchService, chat_service: ChatServi
                     if thinking_enabled:
                         stage_times["thinking_start"] = time.time()
                         
-                        # Show thinking spinner outside the expander so it's always visible
-                        thinking_status = st.empty()
-                        with thinking_status.container():
-                            st.info("🧠 **AI is analyzing the question and search results...**")
+                        # Create thinking expander upfront
+                        thinking_expander = st.expander("🤔 **AI Thinking Process**", expanded=False)
+                        thinking_placeholder = thinking_expander.empty()
+                        
+                        # Show initial thinking status
+                        thinking_placeholder.info("🧠 *Analyzing the question and search results...*")
                         
                         # Create thinking prompt
                         thinking_prompt = f"""You are an AI assistant analyzing a user question and search results. Think through your approach step by step.
@@ -212,35 +214,31 @@ Be concise but show your reasoning process. Write in a thinking style, like you'
                             {"role": "user", "content": thinking_prompt}
                         ]
                         
-                        # Generate thinking response
+                        # Stream thinking response separately
+                        thinking_text = ""
                         try:
-                            thinking_response = ollama.chat(
+                            thinking_stream = ollama.chat(
                                 model=gen_model,
                                 messages=thinking_messages,
-                                stream=False
+                                stream=True
                             )
                             
-                            # Extract thinking content
-                            thinking_content = ""
-                            if hasattr(thinking_response, 'message') and hasattr(thinking_response.message, 'content'):
-                                thinking_content = thinking_response.message.content
-                            elif isinstance(thinking_response, dict) and "message" in thinking_response:
-                                thinking_content = thinking_response["message"].get("content", "")
-                            
-                            # Clear the thinking status and show the expander with results
-                            thinking_status.empty()
-                            
-                            with st.expander("🤔 **AI Thinking Process**", expanded=False):
+                            for chunk in thinking_stream:
+                                # Extract thinking content from chunk
+                                thinking_content = ""
+                                if hasattr(chunk, 'message') and hasattr(chunk.message, 'content'):
+                                    thinking_content = chunk.message.content
+                                elif isinstance(chunk, dict) and "message" in chunk and "content" in chunk["message"]:
+                                    thinking_content = chunk["message"]["content"]
+                                
                                 if thinking_content:
-                                    st.markdown(f"*{thinking_content}*")
-                                else:
-                                    st.info("*Analyzing question and preparing response...*")
+                                    thinking_text += thinking_content
+                                    # Update thinking display with italic formatting
+                                    thinking_placeholder.markdown(f"*{thinking_text}*")
                                     
                         except Exception as e:
-                            # Clear the thinking status and show the expander with fallback
-                            thinking_status.empty()
-                            with st.expander("🤔 **AI Thinking Process**", expanded=False):
-                                st.info("*Processing question and search results to formulate the best response...*")
+                            # Fallback for thinking
+                            thinking_placeholder.info("*Processing question and search results to formulate the best response...*")
                         
                         stage_times["thinking_end"] = time.time()
                     else:
@@ -345,14 +343,9 @@ Be concise but show your reasoning process. Write in a thinking style, like you'
                                 
                                 # NEW: Handle Pydantic model objects (like your gpt-oss:20b chunks)
                                 if hasattr(chunk, 'message') and hasattr(chunk.message, 'content'):
-                                    # Check for content in message.thinking FIRST (your model uses this!)
-                                    if hasattr(chunk.message, 'thinking') and chunk.message.thinking:
-                                        content = chunk.message.thinking
-                                        extraction_method = "pydantic_message.thinking"
-                                    # Then check regular content (even if empty - normal in streaming)
-                                    else:
-                                        content = chunk.message.content  # Can be empty string
-                                        extraction_method = "pydantic_message.content"
+                                    # Extract actual response content (not thinking process)
+                                    content = chunk.message.content  # Can be empty string
+                                    extraction_method = "pydantic_message.content"
                                 
                                 # Handle other Pydantic-style objects
                                 elif hasattr(chunk, 'content') and chunk.content:

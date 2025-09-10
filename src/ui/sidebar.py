@@ -138,7 +138,7 @@ def render_sidebar(db_manager: DatabaseManager, indexer: DocumentIndexer):
         st.divider()
         thinking_mode = st.checkbox(
             "🤔 **AI Thinking Mode**",
-            value=st.session_state.get('thinking_mode', True),
+            value=st.session_state.get('thinking_mode', False),
             help="Show AI's reasoning process before the final answer (like ChatGPT thinking)"
         )
         st.session_state['thinking_mode'] = thinking_mode
