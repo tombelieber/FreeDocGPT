@@ -51,6 +51,7 @@ class Settings:
     page_title: str = "📚 FreeDocBuddy（免費文件夥伴）"
     page_icon: str = "📚"
     layout: str = "wide"
+    default_locale: str = field(default_factory=lambda: os.getenv("DEFAULT_LOCALE", "en"))
     
     # Ollama settings
     ollama_host: str = field(default_factory=lambda: os.getenv("OLLAMA_HOST", "http://localhost:11434"))

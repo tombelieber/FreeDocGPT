@@ -5,26 +5,27 @@ import streamlit as st
 
 from ..config import get_settings
 from ..core import SearchService, ChatService
+from .i18n import t
 
 
 def render_chat_interface(search_service: SearchService, chat_service: ChatService):
     """Render the main chat interface."""
     settings = get_settings()
     
-    st.header("💬 Ask Questions")
+    st.header(t("chat.header", "💬 Ask Questions"))
     
     # Show statistics for last response if available
     if st.session_state.get("response_stats"):
         last_stats = st.session_state.response_stats[-1]
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            st.metric("⏱️ Response Time", f"{last_stats['total_time']:.2f}s")
+            st.metric(t("chat.metric_response_time", "⏱️ Response Time"), f"{last_stats['total_time']:.2f}s")
         with col2:
-            st.metric("🚀 First Token", f"{last_stats['time_to_first_token']:.2f}s")
+            st.metric(t("chat.metric_first_token", "🚀 First Token"), f"{last_stats['time_to_first_token']:.2f}s")
         with col3:
-            st.metric("📝 Tokens", last_stats["tokens"])
+            st.metric(t("chat.metric_tokens", "📝 Tokens"), last_stats["tokens"])
         with col4:
-            st.metric("⚡ Speed", f"{last_stats['tokens_per_sec']:.1f} tok/s")
+            st.metric(t("chat.metric_speed", "⚡ Speed"), f"{last_stats['tokens_per_sec']:.1f} tok/s")
         st.divider()
     
     # Display chat history
@@ -34,19 +35,19 @@ def render_chat_interface(search_service: SearchService, chat_service: ChatServi
             
             # Show stats for assistant messages
             if message["role"] == "assistant" and i < len(st.session_state.get("response_stats", [])):
-                with st.expander("📊 Response Metrics", expanded=False):
+                with st.expander(t("chat.response_metrics", "📊 Response Metrics"), expanded=False):
                     stats = st.session_state.response_stats[i // 2] if i // 2 < len(st.session_state.response_stats) else None
                     if stats:
                         col1, col2 = st.columns(2)
                         with col1:
-                            st.caption(f"Total time: {stats['total_time']:.2f}s")
-                            st.caption(f"First token: {stats['time_to_first_token']:.2f}s")
+                            st.caption(t("chat.metrics_total_time", "Total time: {secs:.2f}s", secs=stats['total_time']))
+                            st.caption(t("chat.metrics_first_token", "First token: {secs:.2f}s", secs=stats['time_to_first_token']))
                         with col2:
-                            st.caption(f"Tokens: {stats['tokens']}")
-                            st.caption(f"Speed: {stats['tokens_per_sec']:.1f} tokens/sec")
+                            st.caption(t("chat.metrics_tokens", "Tokens: {count}", count=stats['tokens']))
+                            st.caption(t("chat.metrics_speed", "Speed: {rate:.1f} tokens/sec", rate=stats['tokens_per_sec']))
     
     # Chat input
-    if prompt := st.chat_input("Ask a question about your documents..."):
+    if prompt := st.chat_input(t("chat.input", "Ask a question about your documents...")):
         # Initialize session state if needed
         if "messages" not in st.session_state:
             st.session_state.messages = []
@@ -65,7 +66,7 @@ def render_chat_interface(search_service: SearchService, chat_service: ChatServi
             # Search phase
             search_start = time.time()
             with status_placeholder.container():
-                with st.spinner("🔍 Searching through documents..."):
+                with st.spinner(t("chat.searching", "🔍 Searching through documents...")):
                     k_value = st.session_state.get('top_k', 5)
                     search_mode = st.session_state.get('search_mode', settings.default_search_mode)
                     alpha = st.session_state.get('hybrid_alpha', settings.hybrid_alpha)
@@ -79,20 +80,20 @@ def render_chat_interface(search_service: SearchService, chat_service: ChatServi
                 system_prompt, user_prompt, citations = search_service.prepare_context(prompt, search_results)
                 
                 # Show search results with statistics
-                search_info = f"✅ Found {len(search_results)} relevant chunks in {search_time:.2f}s"
+                search_info = t("chat.found_chunks", "✅ Found {count} relevant chunks in {secs:.2f}s", count=len(search_results), secs=search_time)
                 if search_stats and 'mode' in search_stats:
                     if search_stats['mode'] == 'hybrid':
-                        search_info += f" (Hybrid: {search_stats.get('bm25_results', 0)} keyword + {search_stats.get('vector_results', 0)} vector)"
+                        search_info += t("chat.found_chunks_hybrid", " (Hybrid: {kw} keyword + {vec} vector)", kw=search_stats.get('bm25_results', 0), vec=search_stats.get('vector_results', 0))
                     elif search_stats['mode'] == 'keyword':
-                        search_info += f" (Keyword: {search_stats.get('bm25_results', 0)} results)"
+                        search_info += t("chat.found_chunks_keyword", " (Keyword: {kw} results)", kw=search_stats.get('bm25_results', 0))
                     else:
-                        search_info += f" (Vector: {search_stats.get('vector_results', 0)} results)"
+                        search_info += t("chat.found_chunks_vector", " (Vector: {vec} results)", vec=search_stats.get('vector_results', 0))
                 
                 status_placeholder.success(search_info)
                 
-                with st.expander("📖 Sources", expanded=True):
+                with st.expander(t("chat.sources", "📖 Sources"), expanded=True):
                     st.markdown(citations)
-                    st.caption(f"Search completed in {search_time:.2f} seconds using {search_stats.get('mode', 'vector')} mode")
+                    st.caption(t("chat.search_completed", "Search completed in {secs:.2f} seconds using {mode} mode", secs=search_time, mode=search_stats.get('mode', 'vector')))
                 
                 # Generate response
                 messages = [
@@ -110,7 +111,7 @@ def render_chat_interface(search_service: SearchService, chat_service: ChatServi
                 first_token_time = None
                 
                 with response_container.container():
-                    with st.spinner("🤔 Thinking..."):
+                    with st.spinner(t("chat.thinking", "🤔 Thinking...")):
                         time.sleep(0.5)  # Brief pause for UX
                 
                 response_placeholder = st.empty()
@@ -143,11 +144,11 @@ def render_chat_interface(search_service: SearchService, chat_service: ChatServi
                                     with cols[0]:
                                         st.caption(f"⏱️ {elapsed:.1f}s")
                                     with cols[1]:
-                                        st.caption(f"📝 {token_count} tokens")
+                                        st.caption(f"📝 {token_count}")
                                     with cols[2]:
                                         st.caption(f"⚡ {token_count/elapsed:.1f} tok/s" if elapsed > 0 else "⚡ -- tok/s")
                                     with cols[3]:
-                                        st.caption("🔄 Streaming...")
+                                        st.caption(t("chat.streaming", "🔄 Streaming..."))
                     
                     # Final metrics
                     total_time = time.time() - start_time
@@ -164,23 +165,23 @@ def render_chat_interface(search_service: SearchService, chat_service: ChatServi
                     with metrics_container.container():
                         cols = st.columns(4)
                         with cols[0]:
-                            st.caption(f"⏱️ {total_time:.2f}s total")
+                            st.caption(f"⏱️ {total_time:.2f}s")
                         with cols[1]:
-                            st.caption(f"📝 {token_count} tokens")
+                            st.caption(f"📝 {token_count}")
                         with cols[2]:
                             st.caption(f"⚡ {stats['tokens_per_sec']:.1f} tok/s")
                         with cols[3]:
-                            st.caption("✅ Complete")
+                            st.caption(t("chat.complete", "✅ Complete"))
                     
                     st.session_state.response_stats.append(stats)
                     st.session_state.messages.append({"role": "assistant", "content": response_text})
                     
                 except Exception as e:
-                    st.error(f"Error generating response: {e}")
+                    st.error(t("chat.error_generating", "Error generating response: {err}", err=e))
                     st.session_state.messages.append({"role": "assistant", "content": f"Error: {e}"})
             else:
-                no_results_msg = "I couldn't find any relevant information in the indexed documents. Please make sure documents are indexed."
-                status_placeholder.warning("⚠️ No relevant documents found")
+                no_results_msg = t("chat.no_relevant", "I couldn't find any relevant information in the indexed documents. Please make sure documents are indexed.")
+                status_placeholder.warning(t("chat.no_relevant_title", "⚠️ No relevant documents found"))
                 st.warning(no_results_msg)
                 st.session_state.messages.append({"role": "assistant", "content": no_results_msg})
     
@@ -188,11 +189,11 @@ def render_chat_interface(search_service: SearchService, chat_service: ChatServi
     st.divider()
     col1, col2, col3 = st.columns(3)
     with col1:
-        if st.button("🔄 Clear Chat"):
+        if st.button(t("buttons.clear_chat", "🔄 Clear Chat")):
             st.session_state.messages = []
             st.session_state.response_stats = []
             st.rerun()
     with col2:
-        st.markdown(f"**Embedding Model:** {settings.embed_model}")
+        st.markdown(f"**{t('footer.embedding_model', 'Embedding Model:')}** {settings.embed_model}")
     with col3:
-        st.markdown(f"**Generation Model:** {settings.gen_model}")
+        st.markdown(f"**{t('footer.generation_model', 'Generation Model:')}** {settings.gen_model}")
