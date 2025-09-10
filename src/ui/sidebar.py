@@ -174,3 +174,9 @@ def render_sidebar(db_manager: DatabaseManager, indexer: DocumentIndexer):
             except Exception:
                 pass
             st.rerun()
+        
+        # Model Configuration Info (shown once)
+        st.divider()
+        st.header("🤖 AI Models")
+        st.caption(f"**Embedding:** {settings.embed_model}")
+        st.caption(f"**Generation:** {settings.gen_model}")

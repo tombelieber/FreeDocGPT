@@ -32,6 +32,21 @@ def render_chat_interface(search_service: SearchService, chat_service: ChatServi
             st.metric(t("chat.metric_tokens", "📝 Tokens"), last_stats["tokens"])
         with col4:
             st.metric(t("chat.metric_speed", "⚡ Speed"), f"{last_stats['tokens_per_sec']:.1f} tok/s")
+        
+        # Show quick stage breakdown if available
+        if "stage_durations" in last_stats and last_stats["stage_durations"]:
+            stage_durations = last_stats["stage_durations"]
+            stage_parts = []
+            if 'search' in stage_durations:
+                stage_parts.append(f"🔍 {stage_durations['search']:.1f}s")
+            if 'thinking' in stage_durations:
+                stage_parts.append(f"🧠 {stage_durations['thinking']:.1f}s")
+            if 'model_init' in stage_durations:
+                stage_parts.append(f"🤖 {stage_durations['model_init']:.1f}s")
+            if 'to_first_token' in stage_durations:
+                stage_parts.append(f"🚀 {stage_durations['to_first_token']:.1f}s")
+            if stage_parts:
+                st.caption("**Pipeline Stages:** " + " • ".join(stage_parts))
         st.divider()
     
     # Display chat history
@@ -67,11 +82,30 @@ def render_chat_interface(search_service: SearchService, chat_service: ChatServi
         
         # Generate response
         with st.chat_message("assistant"):
+            # Initialize detailed timing tracking
+            pipeline_start = time.time()
+            stage_times = {
+                "pipeline_start": pipeline_start,
+                "search_start": None,
+                "search_end": None,
+                "context_prep_start": None,
+                "context_prep_end": None,
+                "thinking_start": None,
+                "thinking_end": None,
+                "model_init_start": None,
+                "model_init_end": None,
+                "vision_start": None,
+                "vision_end": None,
+                "response_start": None,
+                "first_token": None,
+                "response_end": None,
+            }
+            
             # Create main loading container
             main_loading_container = st.empty()
             
             # Clean Search Phase 
-            search_start = time.time()
+            stage_times["search_start"] = time.time()
             with main_loading_container.container():
                 with st.spinner("🔍 Searching through documents..."):
                     k_value = st.session_state.get('top_k', 5)
@@ -80,12 +114,15 @@ def render_chat_interface(search_service: SearchService, chat_service: ChatServi
                     search_results, search_stats = search_service.search_similar(
                         prompt, k=k_value, search_mode=search_mode, alpha=alpha
                     )
+            stage_times["search_end"] = time.time()
             
-            search_time = time.time() - search_start
+            search_time = stage_times["search_end"] - stage_times["search_start"]
             
             if search_results is not None and not search_results.empty:
                 # Prepare context
+                stage_times["context_prep_start"] = time.time()
                 system_prompt, user_prompt, citations = search_service.prepare_context(prompt, search_results)
+                stage_times["context_prep_end"] = time.time()
                 
                 # Clear search loading and show compact results
                 main_loading_container.empty()
@@ -122,6 +159,7 @@ def render_chat_interface(search_service: SearchService, chat_service: ChatServi
                 
                 try:
                     # Simple model initialization without nested containers
+                    stage_times["model_init_start"] = time.time()
                     with st.spinner("🤖 Initializing AI model..."):
                         # Pre-flight: ensure Ollama is reachable and model is available
                         ollama_status = check_ollama_status()
@@ -141,9 +179,12 @@ def render_chat_interface(search_service: SearchService, chat_service: ChatServi
                                 raise RuntimeError(
                                     f"Generation model '{settings.gen_model}' not found in Ollama. Installed: {', '.join(available) or 'none'}"
                                 )
+                    stage_times["model_init_end"] = time.time()
                     
                     # Generate thinking content (ChatGPT-style) - if enabled
                     if thinking_enabled:
+                        stage_times["thinking_start"] = time.time()
+                        
                         # Show thinking spinner outside the expander so it's always visible
                         thinking_status = st.empty()
                         with thinking_status.container():
@@ -200,6 +241,10 @@ Be concise but show your reasoning process. Write in a thinking style, like you'
                             thinking_status.empty()
                             with st.expander("🤔 **AI Thinking Process**", expanded=False):
                                 st.info("*Processing question and search results to formulate the best response...*")
+                        
+                        stage_times["thinking_end"] = time.time()
+                    else:
+                        stage_times["thinking_start"] = stage_times["thinking_end"] = time.time()
                     
                     # If the user likely asks about visuals and we have PDF sources, use vision-enhanced flow
                     is_visual_query = any(k in prompt.lower() for k in [
@@ -207,6 +252,7 @@ Be concise but show your reasoning process. Write in a thinking style, like you'
                     ])
                     stream = None
                     if is_visual_query:
+                        stage_times["vision_start"] = time.time()
                         # Simple vision processing
                         with st.spinner("🎨 Processing visuals and charts..."):
                             try:
@@ -230,10 +276,14 @@ Be concise but show your reasoning process. Write in a thinking style, like you'
                                     
                             except Exception:
                                 stream = None
+                        stage_times["vision_end"] = time.time()
+                    else:
+                        stage_times["vision_start"] = stage_times["vision_end"] = time.time()
                     # Fallback to normal text streaming if no vision stream
                     if stream is None:
                         with st.spinner("🔗 Connecting to language model..."):
                             try:
+                                stage_times["response_start"] = time.time()
                                 stream = ollama.chat(
                                     model=gen_model,
                                     messages=messages,
@@ -242,6 +292,8 @@ Be concise but show your reasoning process. Write in a thinking style, like you'
                             except Exception as e:
                                 st.error(f"Failed to connect to language model: {e}")
                                 stream = None
+                    else:
+                        stage_times["response_start"] = time.time()
                     
                     # Simple response generation
                     response_placeholder = st.empty()
@@ -409,6 +461,7 @@ Be concise but show your reasoning process. Write in a thinking style, like you'
                                 if content is not None:
                                     if first_token_time is None and content.strip():
                                         first_token_time = time.time()
+                                        stage_times["first_token"] = first_token_time
                                         waiting_for_first_token = False
                                         logger.info(f"First token received at chunk #{chunk_count}")
                                     
@@ -502,19 +555,65 @@ Be concise but show your reasoning process. Write in a thinking style, like you'
                                 response_text = error_msg
                                 response_placeholder.markdown(response_text)
 
-                    # Final metrics (simple)
-                    total_time = time.time() - start_time
-                    ttft = (first_token_time - start_time) if first_token_time else 0
+                    # Final metrics with detailed stage timing
+                    stage_times["response_end"] = time.time()
+                    total_time = stage_times["response_end"] - stage_times["pipeline_start"]
+                    ttft = (stage_times["first_token"] - stage_times["pipeline_start"]) if stage_times["first_token"] else 0
+                    
+                    # Calculate stage durations
+                    stage_durations = {}
+                    if stage_times["search_start"] and stage_times["search_end"]:
+                        stage_durations["search"] = stage_times["search_end"] - stage_times["search_start"]
+                    if stage_times["context_prep_start"] and stage_times["context_prep_end"]:
+                        stage_durations["context_prep"] = stage_times["context_prep_end"] - stage_times["context_prep_start"]
+                    if stage_times["thinking_start"] and stage_times["thinking_end"]:
+                        stage_durations["thinking"] = stage_times["thinking_end"] - stage_times["thinking_start"]
+                    if stage_times["model_init_start"] and stage_times["model_init_end"]:
+                        stage_durations["model_init"] = stage_times["model_init_end"] - stage_times["model_init_start"]
+                    if stage_times["vision_start"] and stage_times["vision_end"]:
+                        stage_durations["vision"] = stage_times["vision_end"] - stage_times["vision_start"]
+                    if stage_times["response_start"] and stage_times["first_token"]:
+                        stage_durations["to_first_token"] = stage_times["first_token"] - stage_times["response_start"]
                     
                     stats = {
                         "total_time": total_time,
                         "time_to_first_token": ttft,
                         "tokens": token_count,
                         "tokens_per_sec": token_count / total_time if total_time > 0 else 0,
+                        "stage_durations": stage_durations,
                     }
                     
-                    # Clear metrics and show final status
-                    metrics_container.empty()
+                    # Show final metrics (persistent after completion)
+                    with metrics_container.container():
+                        # Main metrics row
+                        cols = st.columns(4)
+                        with cols[0]:
+                            st.caption(f"⏱️ {total_time:.1f}s")
+                        with cols[1]:
+                            st.caption(f"📝 {token_count}")
+                        with cols[2]:
+                            st.caption(f"⚡ {stats['tokens_per_sec']:.1f} tok/s")
+                        with cols[3]:
+                            st.caption("✅ Complete")
+                        
+                        # Detailed stage breakdown (collapsible)
+                        with st.expander("📊 **Detailed Stage Timing**", expanded=False):
+                            stage_cols = st.columns(3)
+                            with stage_cols[0]:
+                                if "search" in stage_durations:
+                                    st.caption(f"🔍 Search: {stage_durations['search']:.2f}s")
+                                if "context_prep" in stage_durations:
+                                    st.caption(f"📝 Context: {stage_durations['context_prep']:.2f}s")
+                            with stage_cols[1]:
+                                if "thinking" in stage_durations:
+                                    st.caption(f"🧠 Thinking: {stage_durations['thinking']:.2f}s")
+                                if "model_init" in stage_durations:
+                                    st.caption(f"🤖 Model Init: {stage_durations['model_init']:.2f}s")
+                            with stage_cols[2]:
+                                if "vision" in stage_durations:
+                                    st.caption(f"🎨 Vision: {stage_durations['vision']:.2f}s")
+                                if "to_first_token" in stage_durations:
+                                    st.caption(f"🚀 To 1st Token: {stage_durations['to_first_token']:.2f}s")
                     
                     st.session_state.response_stats.append(stats)
                     st.session_state.messages.append({"role": "assistant", "content": response_text})
@@ -551,7 +650,3 @@ Be concise but show your reasoning process. Write in a thinking style, like you'
             st.session_state.messages = []
             st.session_state.response_stats = []
             st.rerun()
-    with col2:
-        st.markdown(f"**{t('footer.embedding_model', 'Embedding Model:')}** {settings.embed_model}")
-    with col3:
-        st.markdown(f"**{t('footer.generation_model', 'Generation Model:')}** {settings.gen_model}")
