@@ -62,13 +62,34 @@ def render_sidebar(db_manager: DatabaseManager, indexer: DocumentIndexer):
             total_chunks = indexed_docs["Chunks"].sum()
             st.metric("Total Chunks", total_chunks)
             
-            # Clear index button
-            if st.button("🗑️ Clear All Index", use_container_width=True):
-                if db_manager.clear_index():
-                    st.success("Index cleared!")
-                    st.rerun()
+            # Reset index button (always visible path below too)
+            if st.button("🧹 Reset Index", use_container_width=True, help="Drop LanceDB table and clear Tantivy index"):
+                ok = db_manager.clear_index()
+                try:
+                    if indexer.hybrid_search:
+                        indexer.hybrid_search.clear_index()
+                except Exception as e:
+                    st.warning(f"Tantivy clear warning: {e}")
+                if ok:
+                    st.success("Index reset completed.")
+                else:
+                    st.error("Failed to reset index. You can manually delete the .lancedb folder and reload.")
+                st.rerun()
         else:
             st.info("No documents indexed yet")
+            # Offer reset even when stats fail (corruption may hide the table)
+            if st.button("🧹 Reset Index", use_container_width=True, help="Drop LanceDB table (if any) and clear Tantivy index"):
+                ok = db_manager.clear_index()
+                try:
+                    if indexer.hybrid_search:
+                        indexer.hybrid_search.clear_index()
+                except Exception as e:
+                    st.warning(f"Tantivy clear warning: {e}")
+                if ok:
+                    st.success("Index reset completed.")
+                else:
+                    st.error("Failed to reset index. You can manually delete the .lancedb folder and reload.")
+                st.rerun()
         
         st.divider()
         

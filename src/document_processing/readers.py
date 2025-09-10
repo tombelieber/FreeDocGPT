@@ -1,6 +1,7 @@
 import io
 import json
 import logging
+import zipfile
 from pathlib import Path
 from typing import Optional, Dict
 
@@ -35,8 +36,8 @@ class DocumentReader:
                 reader = PdfReader(io.BytesIO(pdf_bytes))
                 return "\n".join([p.extract_text() or "" for p in reader.pages])
         except Exception as e:
-            logger.error(f"Error reading PDF: {e}")
-            raise
+            logger.warning(f"Skipping PDF due to read error: {e}")
+            return None
     
     @staticmethod
     def read_docx_bytes(docx_bytes: bytes) -> str:
@@ -49,8 +50,8 @@ class DocumentReader:
                 if paragraph.text.strip()
             ])
         except Exception as e:
-            logger.error(f"Error reading DOCX: {e}")
-            raise
+            logger.warning(f"Skipping DOCX due to read error: {e}")
+            return None
     
     @staticmethod
     def read_markdown(content: str) -> str:
@@ -134,8 +135,34 @@ class DocumentReader:
                 file_bytes = f.read()
             
             if ext == ".pdf":
+                # Quick PDF validation to avoid noisy parser warnings
+                if not file_bytes.startswith(b"%PDF"):
+                    logger.warning(f"Invalid PDF header, skipping: {file_path.name}")
+                    try:
+                        import streamlit as st
+                        st.warning(f"Skipping invalid PDF: {file_path.name}")
+                    except Exception:
+                        pass
+                    return None
                 return self.read_pdf_bytes(file_bytes, vision_enabled=True)
             elif ext in [".docx", ".doc"]:
+                if ext == ".doc":
+                    logger.warning(f"Unsupported legacy DOC format, skipping: {file_path.name}")
+                    try:
+                        import streamlit as st
+                        st.warning(f"Skipping unsupported .doc file: {file_path.name}")
+                    except Exception:
+                        pass
+                    return None
+                # Validate DOCX is a real zip (OOXML)
+                if not zipfile.is_zipfile(io.BytesIO(file_bytes)):
+                    logger.warning(f"Invalid DOCX (not a zip), skipping: {file_path.name}")
+                    try:
+                        import streamlit as st
+                        st.warning(f"Skipping invalid DOCX: {file_path.name}")
+                    except Exception:
+                        pass
+                    return None
                 return self.read_docx_bytes(file_bytes)
             elif ext in [".md", ".markdown"]:
                 content = file_bytes.decode("utf-8")
@@ -154,5 +181,5 @@ class DocumentReader:
                 return file_bytes.decode("utf-8", errors="ignore")
                 
         except Exception as e:
-            logger.error(f"Error reading {file_path.name}: {e}")
+            logger.warning(f"Skipping unreadable file {file_path.name}: {e}")
             return None

@@ -61,6 +61,9 @@ class Settings:
     hybrid_alpha: float = field(default_factory=lambda: float(os.getenv("HYBRID_ALPHA", "0.5")))
     search_result_limit: int = field(default_factory=lambda: int(os.getenv("SEARCH_RESULT_LIMIT", "5")))
     
+    # Prompt settings
+    system_prompt_path: str = field(default_factory=lambda: os.getenv("SYSTEM_PROMPT_PATH", "rag_prompt.md"))
+    
     # Deduplication settings
     dedup_enabled: bool = field(default_factory=lambda: os.getenv("DEDUP_ENABLED", "true").lower() == "true")
     dedup_threshold: float = field(default_factory=lambda: float(os.getenv("DEDUP_THRESHOLD", "0.95")))

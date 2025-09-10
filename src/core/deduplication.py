@@ -216,7 +216,17 @@ class IncrementalIndexer:
             return indexed_files
             
         except Exception as e:
-            logger.error(f"Failed to get indexed files: {e}")
+            msg = str(e)
+            if "Not found:" in msg or "LanceError(IO)" in msg:
+                logger.warning("Detected LanceDB table corruption while listing indexed files; resetting table")
+                try:
+                    self.db_manager.clear_index()
+                    from streamlit import warning as st_warning
+                    st_warning("Detected corrupted index. Resetting LanceDB table; please re-index your documents.")
+                except Exception:
+                    pass
+            else:
+                logger.error(f"Failed to get indexed files: {e}")
             return {}
     
     def needs_reindexing(self, file_path: Path, indexed_info: Dict) -> bool:

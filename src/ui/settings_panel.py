@@ -4,7 +4,7 @@ from ..config import get_settings
 from ..utils import display_ollama_status
 
 
-def render_settings_panel():
+def render_settings_panel(search_service=None):
     """Render the settings panel in the sidebar."""
     settings = get_settings()
     
@@ -151,6 +151,38 @@ def render_settings_panel():
         - Wiki/How-to: 1200 chunk, 200 overlap
         """)
         
+        st.subheader("Prompt")
+        from pathlib import Path
+        # Resolve prompt path similarly to SearchService
+        prompt_path = settings.system_prompt_path
+        candidate = Path(prompt_path)
+        if not candidate.is_absolute():
+            repo_root = Path(__file__).resolve().parents[2]
+            candidate = repo_root / candidate
+        st.caption("Active system prompt file:")
+        st.code(str(candidate))
+        # Optional preview (avoid nested expanders per Streamlit limitations)
+        try:
+            if candidate.exists():
+                preview = candidate.read_text(encoding="utf-8")[:300]
+                show_preview = st.checkbox("Preview first 300 chars", value=False)
+                if show_preview:
+                    st.text(preview)
+            else:
+                st.warning("Prompt file not found; using default built-in prompt.")
+        except Exception as e:
+            st.warning(f"Could not read prompt file: {e}")
+        # Reload button
+        if st.button("🔁 Reload System Prompt", help="Re-read prompt file without restarting"):
+            if search_service is not None:
+                try:
+                    search_service.reload_system_prompt()
+                    st.success("System prompt reloaded.")
+                except Exception as e:
+                    st.error(f"Failed to reload prompt: {e}")
+            else:
+                st.info("Search service not available to reload prompt.")
+
         st.subheader("Models")
         
         # Ollama prerequisite warning

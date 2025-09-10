@@ -59,7 +59,7 @@ def main():
     # Render settings in sidebar
     with st.sidebar:
         st.divider()
-        render_settings_panel()
+        render_settings_panel(search_service)
     
     # Render main chat interface
     render_chat_interface(search_service, chat_service)

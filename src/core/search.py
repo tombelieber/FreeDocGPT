@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 from typing import Optional, Tuple, Dict
 
 import pandas as pd
@@ -27,6 +28,8 @@ class SearchService:
         self.embedding_service = embedding_service or EmbeddingService()
         self.use_hybrid = use_hybrid
         self.use_reranking = use_reranking
+        # Defer loading the system prompt until it is actually needed
+        self._system_prompt: Optional[str] = None
         
         # Initialize hybrid search if enabled
         if self.use_hybrid:
@@ -54,7 +57,44 @@ class SearchService:
                 self.use_reranking = False
         else:
             self.reranker = None
-    
+
+    def _load_system_prompt(self) -> str:
+        """Load system prompt from configured path, falling back to default."""
+        default_prompt = (
+            "You are a helpful assistant. Answer questions based on the provided context. "
+            "If the context doesn't contain relevant information, say so."
+        )
+        try:
+            from ..config import get_settings
+            settings = get_settings()
+            path_str = settings.system_prompt_path
+            candidate = Path(path_str)
+            if not candidate.is_absolute():
+                # Resolve relative to repository root (two levels up from this file)
+                repo_root = Path(__file__).resolve().parents[2]
+                candidate = repo_root / candidate
+            if candidate.exists() and candidate.is_file():
+                content = candidate.read_text(encoding="utf-8").strip()
+                if content:
+                    logger.info(f"Loaded system prompt from {candidate}")
+                    return content
+                else:
+                    logger.warning(f"System prompt file {candidate} is empty; using default prompt")
+            else:
+                logger.info(f"System prompt file not found at {candidate}; using default prompt")
+        except Exception as e:
+            logger.warning(f"Failed to load system prompt: {e}; using default prompt")
+        return default_prompt
+
+    def reload_system_prompt(self) -> None:
+        """Reload system prompt from disk and update internal cache."""
+        self._system_prompt = self._load_system_prompt()
+
+    def _ensure_system_prompt(self) -> None:
+        """Load the system prompt if it hasn't been loaded yet."""
+        if self._system_prompt is None:
+            self._system_prompt = self._load_system_prompt()
+
     def search_similar(
         self,
         query: str,
@@ -147,10 +187,9 @@ class SearchService:
         bullets = [f"• {c['chunk'][:500]}" for c in contexts]
         cites = [f"[{i}] {c['source']}" for i, c in enumerate(contexts, 1)]
         
-        system = (
-            "You are a helpful assistant. Answer questions based on the provided context. "
-            "If the context doesn't contain relevant information, say so."
-        )
+        # Ensure the prompt is loaded only when we actually need it
+        self._ensure_system_prompt()
+        system = self._system_prompt
         
         user = f"Question: {query}\n\nContext:\n" + "\n".join(bullets)
         

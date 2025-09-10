@@ -79,7 +79,18 @@ class DatabaseManager:
             
             return stats
         except Exception as e:
-            logger.error(f"Failed to get indexed documents: {e}")
+            # Auto-repair on common Lance corruption (dangling fragments)
+            msg = str(e)
+            if "Not found:" in msg or "LanceError(IO)" in msg:
+                logger.warning("Detected LanceDB table corruption; resetting table")
+                try:
+                    self.clear_index()
+                    import streamlit as st
+                    st.warning("Detected corrupted index. Resetting LanceDB table; please re-index your documents.")
+                except Exception:
+                    pass
+            else:
+                logger.error(f"Failed to get indexed documents: {e}")
             return pd.DataFrame()
     
     def add_documents(self, rows: list):
@@ -104,10 +115,14 @@ class DatabaseManager:
     def clear_index(self):
         """Clear all indexed documents."""
         try:
+            # If table exists, drop it
             if self.settings.table_name in self.db.table_names():
                 self.db.drop_table(self.settings.table_name)
                 self.table = None
                 return True
+            # If table does not exist, consider it already cleared
+            self.table = None
+            return True
         except Exception as e:
             logger.error(f"Failed to clear index: {e}")
             return False
