@@ -1,3 +1,4 @@
+import json
 import logging
 import time
 
@@ -270,32 +271,126 @@ Be concise but show your reasoning process. Write in a thinking style, like you'
                             for chunk in stream:
                                 chunk_count += 1
                                 
-                                # Use simplified content extraction that matches working code in chat.py
-                                content = None
+                                # COMPREHENSIVE DEBUG: Log all chunk details for first 5 chunks
+                                if chunk_count <= 5:
+                                    logger.info(f"Chunk #{chunk_count}: type={type(chunk)}, content={chunk}")
+                                    if isinstance(chunk, dict):
+                                        logger.info(f"  Dict keys: {list(chunk.keys())}")
+                                        if "message" in chunk:
+                                            logger.info(f"  Message: {chunk['message']}")
+                                            if isinstance(chunk["message"], dict):
+                                                logger.info(f"  Message keys: {list(chunk['message'].keys())}")
                                 
-                                # Primary format: Ollama standard streaming format
-                                if isinstance(chunk, dict) and "message" in chunk and "content" in chunk["message"]:
-                                    content = chunk["message"]["content"]
-                                # Vision service string format
-                                elif isinstance(chunk, str):
-                                    content = chunk
-                                # Debug: log unexpected chunk format for troubleshooting
-                                elif isinstance(chunk, dict):
-                                    # Try alternative formats but log for debugging
-                                    if "response" in chunk:
+                                # ROBUST content extraction for different Ollama client versions
+                                content = None
+                                extraction_method = "none"
+                                
+                                # Debug: Print chunk structure for first few chunks with VERY visible output
+                                if chunk_count <= 3:
+                                    print(f"\n🔍 OLLAMA CHUNK #{chunk_count}: {chunk}")
+                                    logger.info(f"DEBUG Chunk #{chunk_count}: {chunk}")
+                                    # Also show in Streamlit for immediate visibility
+                                    if chunk_count == 1:
+                                        st.info(f"🔍 First chunk structure: {chunk}")
+                                
+                                # COMPREHENSIVE Ollama format detection
+                                if isinstance(chunk, dict):
+                                    # Most common format variations found in real-world usage:
+                                    
+                                    # Standard: {"message": {"content": "text", "role": "assistant"}}
+                                    if "message" in chunk and isinstance(chunk["message"], dict):
+                                        if "content" in chunk["message"]:
+                                            content = chunk["message"]["content"]
+                                            extraction_method = "message.content"
+                                    
+                                    # Legacy: {"response": "text"}
+                                    elif "response" in chunk:
                                         content = chunk["response"]
+                                        extraction_method = "response"
+                                    
+                                    # Sometimes content is directly in chunk: {"content": "text"}
                                     elif "content" in chunk:
                                         content = chunk["content"]
+                                        extraction_method = "direct_content"
+                                    
+                                    # Check if it's a streaming completion format with done flag
+                                    # {"model": "...", "created_at": "...", "response": "text", "done": false}
+                                    elif "model" in chunk and "response" in chunk:
+                                        content = chunk["response"]
+                                        extraction_method = "model_response"
+                                    
+                                    # Alternative format with text field
+                                    elif "text" in chunk:
+                                        content = chunk["text"]
+                                        extraction_method = "text"
+                                    
+                                    # OpenAI-compatible format: {"choices": [{"delta": {"content": "text"}}]}
+                                    elif "choices" in chunk and isinstance(chunk["choices"], list) and len(chunk["choices"]) > 0:
+                                        choice = chunk["choices"][0]
+                                        if isinstance(choice, dict) and "delta" in choice and isinstance(choice["delta"], dict):
+                                            if "content" in choice["delta"]:
+                                                content = choice["delta"]["content"]
+                                                extraction_method = "choices.delta.content"
+                                    
+                                    # Direct delta format: {"delta": {"content": "text"}}
+                                    elif "delta" in chunk and isinstance(chunk["delta"], dict) and "content" in chunk["delta"]:
+                                        content = chunk["delta"]["content"]
+                                        extraction_method = "delta.content"
+                                    
+                                    # Sometimes the entire chunk is just {"text": "content"} or {"output": "content"}
                                     else:
-                                        # Log chunk structure for debugging (first few chunks only)
-                                        if chunk_count <= 3:
-                                            logger.debug(f"Unexpected chunk format: {chunk}")
+                                        # Try common output fields
+                                        for field in ["output", "answer", "reply", "generated_text", "completion", "text_output"]:
+                                            if field in chunk and isinstance(chunk[field], str):
+                                                content = chunk[field]
+                                                extraction_method = field
+                                                break
+                                
+                                # Handle direct string responses
+                                elif isinstance(chunk, str):
+                                    content = chunk
+                                    extraction_method = "direct_string"
+                                
+                                # Handle other types (bytes, etc.)
+                                elif hasattr(chunk, 'decode'):  # bytes
+                                    try:
+                                        content = chunk.decode('utf-8')
+                                        extraction_method = "decoded_bytes"
+                                    except:
+                                        content = None
+                                
+                                # Log content extraction for first few chunks
+                                if chunk_count <= 5:
+                                    logger.info(f"  Extraction method: {extraction_method}, content: {repr(content)}")
+                                    
+                                    # If no content was extracted, log the full chunk structure for debugging
+                                    if content is None and isinstance(chunk, dict):
+                                        logger.warning(f"  ⚠️  No content extracted from chunk #{chunk_count}")
+                                        logger.warning(f"  Full chunk structure: {json.dumps(chunk, indent=2, default=str)}")
+                                
+                                # Handle empty chunks and metadata chunks gracefully
+                                # Many Ollama streams have empty chunks or metadata-only chunks mixed with content
+                                if content is not None:
+                                    # Even empty strings are valid (normal in streaming)
+                                    pass
+                                elif isinstance(chunk, dict):
+                                    # Check if this is a metadata chunk we should ignore
+                                    metadata_only = any(key in chunk for key in [
+                                        "done", "total_duration", "load_duration", "prompt_eval_count", 
+                                        "prompt_eval_duration", "eval_count", "eval_duration", "model",
+                                        "created_at", "context"
+                                    ])
+                                    
+                                    if metadata_only and chunk_count > 10:
+                                        # Skip metadata chunks after the first few - these are normal
+                                        continue
                                 
                                 # Process content (including empty strings which are normal in streaming)
                                 if content is not None:
                                     if first_token_time is None and content.strip():
                                         first_token_time = time.time()
                                         waiting_for_first_token = False
+                                        logger.info(f"First token received at chunk #{chunk_count}")
                                     
                                     response_text += content
                                     if content.strip():  # Only count non-empty content for tokens
@@ -332,8 +427,11 @@ Be concise but show your reasoning process. Write in a thinking style, like you'
                                 st.warning("🔄 No chunks received from stream, trying non-streaming mode...")
                                 logger.warning("No chunks received from Ollama stream")
                             else:
-                                st.warning(f"🔄 Received {chunk_count} chunks but no content, trying non-streaming mode...")
-                                logger.warning(f"Received {chunk_count} chunks from Ollama but extracted no content")
+                                # Show debugging info to user
+                                debug_msg = f"🔄 Received {chunk_count} chunks but no content extracted. Check console logs for chunk format details."
+                                st.warning(debug_msg)
+                                logger.warning(f"STREAMING ISSUE: Received {chunk_count} chunks from Ollama but extracted no content")
+                                logger.warning("Check the debug logs above for actual chunk structures. This suggests a chunk format mismatch.")
                             
                             try:
                                 resp = ollama.chat(model=gen_model, messages=messages, stream=False)
