@@ -285,16 +285,36 @@ Be concise but show your reasoning process. Write in a thinking style, like you'
                                 content = None
                                 extraction_method = "none"
                                 
-                                # Debug: Print chunk structure for first few chunks with VERY visible output
+                                # Debug: Print chunk structure for first few chunks
                                 if chunk_count <= 3:
-                                    print(f"\n🔍 OLLAMA CHUNK #{chunk_count}: {chunk}")
                                     logger.info(f"DEBUG Chunk #{chunk_count}: {chunk}")
-                                    # Also show in Streamlit for immediate visibility
-                                    if chunk_count == 1:
-                                        st.info(f"🔍 First chunk structure: {chunk}")
                                 
-                                # COMPREHENSIVE Ollama format detection
-                                if isinstance(chunk, dict):
+                                # COMPREHENSIVE Ollama format detection - handle both dicts and Pydantic objects
+                                
+                                # NEW: Handle Pydantic model objects (like your gpt-oss:20b chunks)
+                                if hasattr(chunk, 'message') and hasattr(chunk.message, 'content'):
+                                    # Check for content in message.thinking FIRST (your model uses this!)
+                                    if hasattr(chunk.message, 'thinking') and chunk.message.thinking:
+                                        content = chunk.message.thinking
+                                        extraction_method = "pydantic_message.thinking"
+                                    # Then check regular content (even if empty - normal in streaming)
+                                    else:
+                                        content = chunk.message.content  # Can be empty string
+                                        extraction_method = "pydantic_message.content"
+                                
+                                # Handle other Pydantic-style objects
+                                elif hasattr(chunk, 'content') and chunk.content:
+                                    content = chunk.content
+                                    extraction_method = "pydantic_content"
+                                elif hasattr(chunk, 'response') and chunk.response:
+                                    content = chunk.response
+                                    extraction_method = "pydantic_response"
+                                elif hasattr(chunk, 'text') and chunk.text:
+                                    content = chunk.text
+                                    extraction_method = "pydantic_text"
+                                
+                                # Traditional dictionary format
+                                elif isinstance(chunk, dict):
                                     # Most common format variations found in real-world usage:
                                     
                                     # Standard: {"message": {"content": "text", "role": "assistant"}}
