@@ -32,13 +32,50 @@ class MetaQueryHandler:
         Returns:
             Query type ('count', 'list', 'stats') or None if not a meta query
         """
-        query_lower = query.lower()
+        query_lower = query.lower().strip()
         
-        # Check for document/file/index related terms
-        if not any(term in query_lower for term in ['document', 'file', 'index', 'available', 'stored']):
-            return None
+        # Simple single word queries
+        if query_lower in ['files?', 'documents?', 'files', 'documents', 'index?', 'index']:
+            return 'list'
         
-        # Check for meta query patterns
+        # Check for common question patterns about the index
+        index_questions = [
+            'what.*indexed',
+            'what.*have',
+            'what.*you.*got',
+            'show.*file',
+            'show.*document',
+            'list.*file',
+            'list.*document',
+            'available.*file',
+            'available.*document',
+            'indexed.*file',
+            'indexed.*document',
+            'what file',
+            'which file',
+            'what document',
+            'which document',
+            'tell me.*file',
+            'tell me.*document',
+            'tell me.*index',
+            'want.*see.*document',
+            'want.*see.*file',
+            'display.*file',
+            'display.*document'
+        ]
+        
+        import re
+        for pattern in index_questions:
+            if re.search(pattern, query_lower):
+                # Determine specific type based on keywords
+                if any(word in query_lower for word in ['how many', 'number', 'count', 'total']):
+                    return 'count'
+                elif any(word in query_lower for word in ['statistic', 'summary', 'overview']):
+                    return 'stats'
+                else:
+                    return 'list'
+        
+        # Original keyword-based detection as fallback
         for query_type, keywords in self.meta_keywords.items():
             if any(keyword in query_lower for keyword in keywords):
                 return query_type
