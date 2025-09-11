@@ -6,7 +6,7 @@ from .i18n import t, get_locale, set_locale
 from .locale_persistence import save_locale
 
 
-def render_sidebar(db_manager: DatabaseManager, indexer: DocumentIndexer):
+def render_sidebar(db_manager: DatabaseManager, indexer: DocumentIndexer, search_service=None):
     """Render the sidebar with document management."""
     settings = get_settings()
     
@@ -173,6 +173,9 @@ def render_sidebar(db_manager: DatabaseManager, indexer: DocumentIndexer):
                 save_locale(choice)
             except Exception:
                 pass
+            # Invalidate prompt cache to reload language-specific prompt
+            if search_service and hasattr(search_service, 'invalidate_prompt_cache'):
+                search_service.invalidate_prompt_cache()
             st.rerun()
         
         # Model Configuration Info (shown once)

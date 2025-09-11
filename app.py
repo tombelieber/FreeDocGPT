@@ -116,7 +116,7 @@ def main():
     db_manager, indexer, search_service, chat_service = initialize_services()
     
     # Render sidebar
-    render_sidebar(db_manager, indexer)
+    render_sidebar(db_manager, indexer, search_service)
     
     # Render settings in sidebar
     with st.sidebar:

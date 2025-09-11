@@ -62,29 +62,60 @@ class SearchService:
             self.reranker = None
 
     def _load_system_prompt(self) -> str:
-        """Load system prompt from configured path, falling back to default."""
+        """Load system prompt based on current UI language, falling back to default."""
         default_prompt = (
             "You are a helpful assistant. Answer questions based on the provided context. "
             "If the context doesn't contain relevant information, say so."
         )
         try:
             from ..config import get_settings
+            from ..ui.i18n import get_locale
+            
             settings = get_settings()
-            path_str = settings.system_prompt_path
-            candidate = Path(path_str)
-            if not candidate.is_absolute():
-                # Resolve relative to repository root (two levels up from this file)
-                repo_root = Path(__file__).resolve().parents[2]
-                candidate = repo_root / candidate
+            current_locale = get_locale()
+            
+            # Map locales to prompt file names
+            prompt_files = {
+                "en": "rag_prompt_en.md",
+                "zh-Hant": "rag_prompt_zh_hant.md", 
+                "zh-Hans": "rag_prompt_zh_hans.md",
+                "es": "rag_prompt_es.md",
+                "ja": "rag_prompt_ja.md"
+            }
+            
+            # Get the appropriate prompt file for current language
+            prompt_filename = prompt_files.get(current_locale, "rag_prompt_en.md")
+            
+            # Try language-specific prompt first
+            repo_root = Path(__file__).resolve().parents[2]
+            candidate = repo_root / prompt_filename
+            
             if candidate.exists() and candidate.is_file():
                 content = candidate.read_text(encoding="utf-8").strip()
                 if content:
-                    logger.info(f"Loaded system prompt from {candidate}")
+                    logger.info(f"Loaded language-specific system prompt from {candidate} for locale {current_locale}")
                     return content
                 else:
-                    logger.warning(f"System prompt file {candidate} is empty; using default prompt")
+                    logger.warning(f"Language-specific prompt file {candidate} is empty")
             else:
-                logger.info(f"System prompt file not found at {candidate}; using default prompt")
+                logger.info(f"Language-specific prompt file not found at {candidate}")
+            
+            # Fallback to configured path (backward compatibility)
+            path_str = settings.system_prompt_path
+            fallback_candidate = Path(path_str)
+            if not fallback_candidate.is_absolute():
+                fallback_candidate = repo_root / fallback_candidate
+                
+            if fallback_candidate.exists() and fallback_candidate.is_file():
+                content = fallback_candidate.read_text(encoding="utf-8").strip()
+                if content:
+                    logger.info(f"Loaded fallback system prompt from {fallback_candidate}")
+                    return content
+                else:
+                    logger.warning(f"Fallback prompt file {fallback_candidate} is empty; using default prompt")
+            else:
+                logger.info(f"Fallback prompt file not found at {fallback_candidate}; using default prompt")
+                
         except Exception as e:
             logger.warning(f"Failed to load system prompt: {e}; using default prompt")
         return default_prompt
@@ -92,6 +123,10 @@ class SearchService:
     def reload_system_prompt(self) -> None:
         """Reload system prompt from disk and update internal cache."""
         self._system_prompt = self._load_system_prompt()
+    
+    def invalidate_prompt_cache(self) -> None:
+        """Invalidate the cached prompt, forcing reload on next use."""
+        self._system_prompt = None
 
     def _ensure_system_prompt(self) -> None:
         """Load the system prompt if it hasn't been loaded yet."""
