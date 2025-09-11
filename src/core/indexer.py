@@ -14,6 +14,8 @@ from .cache import CachedEmbeddingService, get_shared_embedding_cache
 from .deduplication import DocumentHasher, ChunkDeduplicator, IncrementalIndexer
 from .hybrid_search import HybridSearch
 from .token_chunker import TokenChunker, ChunkOptimizer
+from .clustering import DocumentClusterer
+from .query_analyzer import QueryAnalyzer
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +56,10 @@ class DocumentIndexer:
             threshold=self.settings.dedup_threshold
         ) if self.settings.dedup_enabled else None
         self.incremental_indexer = IncrementalIndexer(self.db_manager)
+        
+        # Initialize clustering and query analyzer for smart search
+        self.clusterer = DocumentClusterer()
+        self.query_analyzer = QueryAnalyzer()
         
         # Initialize hybrid search if enabled
         if self.settings.hybrid_search_enabled:
@@ -98,6 +104,9 @@ class DocumentIndexer:
         # Use incremental indexer to filter files
         new_files, changed_files = self.incremental_indexer.filter_changed_files(files)
         
+        # Calculate unchanged files for reporting
+        unchanged_count = len(files) - len(new_files) - len(changed_files)
+        
         # Handle changed files (reindex them)
         docs_folder = self.settings.get_documents_path()
         for changed_file in changed_files:
@@ -115,10 +124,19 @@ class DocumentIndexer:
         files_to_index = new_files + changed_files
         
         if not files_to_index:
-            st.info("All files are up to date")
+            st.success(f"✅ All {len(files)} file(s) are up to date - no indexing needed")
             return
         
-        st.info(f"Processing {len(new_files)} new and {len(changed_files)} changed document(s)...")
+        # Show detailed status
+        status_parts = []
+        if len(new_files) > 0:
+            status_parts.append(f"{len(new_files)} new")
+        if len(changed_files) > 0:
+            status_parts.append(f"{len(changed_files)} changed")
+        if unchanged_count > 0:
+            status_parts.append(f"{unchanged_count} unchanged (skipped)")
+        
+        st.info(f"📊 Processing {' and '.join(status_parts)} document(s)...")
         
         if auto_detect:
             st.info("🤖 Auto-detecting document types for optimal processing...")
@@ -180,17 +198,32 @@ class DocumentIndexer:
                     # Get file metadata
                     file_hash, file_modified = self.hasher.file_hash(file_path)
                     
+                    # Extract keywords for the entire document (once per file, not per chunk)
+                    doc_keywords = []
+                    if auto_detect:
+                        try:
+                            # Use first 3000 chars for keyword extraction
+                            text_sample = text[:3000] if len(text) > 3000 else text
+                            doc_keywords = self.query_analyzer.extract_keywords(text_sample, max_keywords=10)
+                            st.caption(f"🔑 Extracted keywords: {', '.join(doc_keywords[:5])}...")
+                        except Exception as e:
+                            logger.warning(f"Keyword extraction failed for {display_name}: {e}")
+                    
+                    # Convert keywords list to string for storage
+                    keywords_str = ",".join(doc_keywords) if doc_keywords else ""
+                    
                     for idx, chunk in enumerate(chunks):
                         all_docs.append({
                             "source": display_name,  # Store the relative path as source
                             "chunk": chunk,
                             "timestamp": datetime.now().isoformat(),
-                            "content_hash": self.hasher.fast_hash(chunk),
+                            "content_hash": file_hash,  # Store file hash, not chunk hash for change detection
                             "doc_type": doc_type if auto_detect else "general",
                             "language": language if auto_detect else "english",
                             "chunk_index": idx,
                             "total_chunks": len(chunks),
-                            "file_modified": file_modified
+                            "file_modified": file_modified,
+                            "doc_keywords": keywords_str  # Add keywords to each chunk from the same doc
                         })
         
         if all_docs:
@@ -217,7 +250,7 @@ class DocumentIndexer:
         st.caption(f"📊 Using adaptive settings: chunk={chunk_size}, overlap={overlap}")
     
     def _index_chunks(self, all_docs: list, doc_stats: dict, auto_detect: bool, num_files: int):
-        """Index document chunks with embeddings."""
+        """Index document chunks with embeddings and clustering."""
         with st.spinner(f"Generating embeddings for {len(all_docs)} chunks..."):
             embeddings = self.embedding_service.embed_texts(
                 [d["chunk"] for d in all_docs]
@@ -232,6 +265,28 @@ class DocumentIndexer:
                         all_docs, embeddings_array
                     )
                     embeddings = embeddings_array.tolist() if len(embeddings_array) > 0 else []
+                else:
+                    import numpy as np
+                    embeddings_array = np.array(embeddings, dtype=np.float32)
+                
+                # Perform clustering on embeddings
+                cluster_ids = None
+                cluster_distances = None
+                if len(embeddings) > 2:  # Need at least 3 documents for meaningful clustering
+                    with st.spinner("🎯 Clustering documents for optimized search..."):
+                        try:
+                            self.clusterer.fit(embeddings_array)
+                            cluster_ids, cluster_distances = self.clusterer.predict(embeddings_array)
+                            cluster_info = self.clusterer.get_cluster_info()
+                            st.caption(f"📊 Created {cluster_info['n_clusters']} document clusters for smart search")
+                        except Exception as e:
+                            logger.warning(f"Clustering failed: {e}")
+                            cluster_ids = np.zeros(len(embeddings), dtype=int)
+                            cluster_distances = np.zeros(len(embeddings))
+                else:
+                    # Default to single cluster for small datasets
+                    cluster_ids = np.zeros(len(embeddings), dtype=int)
+                    cluster_distances = np.zeros(len(embeddings))
                 
                 rows = []
                 for i, (doc, emb) in enumerate(zip(all_docs, embeddings)):
@@ -248,7 +303,10 @@ class DocumentIndexer:
                         "total_chunks": doc.get("total_chunks", 1),
                         "page_number": doc.get("page_number", 0),
                         "section_header": doc.get("section_header", ""),
-                        "file_modified": doc.get("file_modified", datetime.now().replace(microsecond=0))
+                        "file_modified": doc.get("file_modified", datetime.now().replace(microsecond=0)),
+                        "doc_keywords": doc.get("doc_keywords", ""),
+                        "cluster_id": int(cluster_ids[i]) if cluster_ids is not None else 0,
+                        "cluster_distance": float(cluster_distances[i]) if cluster_distances is not None else 0.0
                     }
                     rows.append(row_data)
                 

@@ -48,6 +48,10 @@ class DatabaseManager:
                 pa.field("page_number", pa.int32()),  # For PDFs
                 pa.field("section_header", pa.string()),  # Section/chapter title
                 pa.field("file_modified", pa.timestamp('ms')),  # File modification time
+                # Smart search fields
+                pa.field("doc_keywords", pa.string()),  # Extracted keywords for filtering
+                pa.field("cluster_id", pa.int32()),  # Cluster assignment for grouped search
+                pa.field("cluster_distance", pa.float32()),  # Distance to cluster centroid
             ])
             self.table = self.db.create_table(
                 self.settings.table_name, 

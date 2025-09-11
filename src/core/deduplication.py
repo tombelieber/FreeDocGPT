@@ -314,14 +314,14 @@ class IncrementalIndexer:
             # Recreate table with filtered data
             self.db_manager.db.drop_table(self.settings.table_name)
             if not filtered_df.empty:
-                self.db_manager.db.create_table(
+                self.db_manager.table = self.db_manager.db.create_table(
                     self.settings.table_name,
                     data=filtered_df
                 )
             else:
                 # Create empty table with schema
                 self.db_manager.table = None
-                self.db_manager.get_table()
+                self.db_manager.table = self.db_manager.get_table()
             
             logger.info(f"Removed old chunks for {source}")
             

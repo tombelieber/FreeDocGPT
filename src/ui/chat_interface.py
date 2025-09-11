@@ -112,7 +112,8 @@ def render_chat_interface(search_service: SearchService, chat_service: ChatServi
                     search_mode = st.session_state.get('search_mode', settings.default_search_mode)
                     alpha = st.session_state.get('hybrid_alpha', settings.hybrid_alpha)
                     search_results, search_stats = search_service.search_similar(
-                        prompt, k=k_value, search_mode=search_mode, alpha=alpha
+                        prompt, k=k_value, search_mode=search_mode, alpha=alpha,
+                        use_smart_filtering=True  # Enable smart search optimization
                     )
             stage_times["search_end"] = time.time()
             
@@ -141,6 +142,23 @@ def render_chat_interface(search_service: SearchService, chat_service: ChatServi
                 
                 with st.expander("📖 Sources", expanded=False):
                     st.markdown(citations)
+                    
+                    # Show search optimization details if available
+                    if search_stats and 'query_analysis' in search_stats:
+                        st.divider()
+                        st.caption("🎯 Smart Search Optimization:")
+                        
+                        analysis = search_stats.get('query_analysis', {})
+                        if analysis.get('likely_types'):
+                            st.caption(f"  📊 Document types: {', '.join(analysis['likely_types'])}")
+                        if analysis.get('keywords'):
+                            st.caption(f"  🔑 Key terms: {', '.join(analysis['keywords'][:3])}")
+                        if 'clusters_searched' in search_stats:
+                            st.caption(f"  🎯 Clusters searched: {search_stats['clusters_searched']}")
+                        if 'filtered_search_space' in search_stats:
+                            st.caption(f"  🚀 Search space: {search_stats['filtered_search_space']} docs")
+                        if search_stats.get('search_expanded'):
+                            st.caption("  🔄 Search expanded for better results")
                 
                 # Prepare main response messages
                 messages = [

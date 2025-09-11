@@ -150,7 +150,8 @@ class HybridSearch:
         query: str,
         k: int = 10,
         alpha: float = 0.5,
-        search_mode: str = "hybrid"
+        search_mode: str = "hybrid",
+        filter_ids: Optional[List[int]] = None
     ) -> Tuple[pd.DataFrame, Dict]:
         """
         Perform hybrid search with configurable modes.
@@ -160,11 +161,14 @@ class HybridSearch:
             k: Number of results to return
             alpha: Weight for vector search (0-1). 1 = pure vector, 0 = pure BM25
             search_mode: "hybrid", "vector", or "keyword"
+            filter_ids: Optional list of document IDs to restrict search to
         
         Returns:
             Tuple of (results DataFrame, search statistics)
         """
         stats = {"mode": search_mode, "query": query}
+        if filter_ids:
+            stats["filtered_to_ids"] = len(filter_ids)
         
         try:
             if search_mode == "vector":
@@ -190,13 +194,23 @@ class HybridSearch:
                 return self._get_documents_by_ids(doc_ids), stats
             
             else:  # hybrid
-                # Get both result sets
-                bm25_results = self.tantivy_index.search(query, k * 2)
+                # Get both result sets (fetch more if filtering)
+                fetch_k = k * 3 if filter_ids else k * 2
+                bm25_results = self.tantivy_index.search(query, fetch_k)
+                
+                # Apply ID filter to BM25 results if provided
+                if filter_ids:
+                    filter_ids_str = {str(id) for id in filter_ids}
+                    bm25_results = [r for r in bm25_results if r["doc_id"] in filter_ids_str]
                 
                 embedding = self.embedding_service.embed_query(query)
                 vector_results = None
                 if embedding is not None:
-                    vector_results = self.db_manager.search(embedding, limit=k * 2)
+                    vector_results = self.db_manager.search(embedding, limit=fetch_k)
+                    
+                    # Apply ID filter to vector results if provided
+                    if filter_ids and vector_results is not None and not vector_results.empty:
+                        vector_results = vector_results[vector_results['id'].isin(filter_ids)]
                 
                 # Combine with RRF
                 combined_results = self._reciprocal_rank_fusion(

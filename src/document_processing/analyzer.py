@@ -20,6 +20,17 @@ class DocumentAnalyzer:
     
     def detect_document_type(self, text: str, filename: str = "") -> str:
         """Use LLM to intelligently detect document type."""
+        
+        # First check filename for obvious patterns
+        filename_lower = filename.lower()
+        if any(keyword in filename_lower for keyword in ['meeting', 'minutes', 'standup', 'retro', 'retrospective']):
+            return "meeting"
+        elif any(keyword in filename_lower for keyword in ['prd', 'requirement', 'spec', 'specification']):
+            return "prd"
+        elif any(keyword in filename_lower for keyword in ['wiki', 'guide', 'manual', 'howto', 'how-to']):
+            return "wiki"
+        
+        # If no obvious filename match, use LLM analysis
         sample = text[:3000] if len(text) > 3000 else text
         
         classification_prompt = f"""

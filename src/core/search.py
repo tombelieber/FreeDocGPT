@@ -10,6 +10,8 @@ from .embeddings import EmbeddingService
 from .cache import CachedEmbeddingService, get_shared_embedding_cache
 from .hybrid_search import HybridSearch
 from .reranker import Reranker, HybridReranker
+from .query_analyzer import QueryAnalyzer
+from .clustering import DocumentClusterer
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +62,10 @@ class SearchService:
                 self.use_reranking = False
         else:
             self.reranker = None
+        
+        # Initialize query analyzer and clusterer for smart search
+        self.query_analyzer = QueryAnalyzer()
+        self.clusterer = None  # Will be loaded from indexed data when needed
 
     def _load_system_prompt(self) -> str:
         """Load system prompt based on current UI language, falling back to default."""
@@ -139,7 +145,8 @@ class SearchService:
         k: int = 5,
         search_mode: str = "hybrid",
         alpha: float = 0.5,
-        rerank_top_k: Optional[int] = None
+        rerank_top_k: Optional[int] = None,
+        use_smart_filtering: bool = True
     ) -> Tuple[Optional[pd.DataFrame], Optional[Dict]]:
         """
         Search for similar documents using hybrid or vector search with optional reranking.
@@ -150,30 +157,77 @@ class SearchService:
             search_mode: "hybrid", "vector", or "keyword"
             alpha: Weight for vector search in hybrid mode (0-1)
             rerank_top_k: Number of results after reranking (None to keep all)
+            use_smart_filtering: Enable smart cluster/metadata filtering
         
         Returns:
             Tuple of (results DataFrame, search statistics)
         """
         try:
-            # Get initial search results
-            if self.use_hybrid and self.hybrid_search:
-                # Use hybrid search - get more results if reranking
-                search_k = k * 3 if self.use_reranking else k
-                results, stats = self.hybrid_search.search(
-                    query, search_k, alpha, search_mode
-                )
-            else:
-                # Fallback to vector-only search
-                embedding = self.embedding_service.embed_query(query)
-                if embedding is None:
-                    return None, {"error": "Failed to generate embedding"}
+            # Analyze query for smart filtering
+            query_analysis = None
+            filters = {}
+            
+            if use_smart_filtering:
+                query_analysis = self.query_analyzer.analyze_query(query)
+                logger.info(f"Query analysis: {query_analysis}")
                 
-                search_k = k * 3 if self.use_reranking else k
-                results = self.db_manager.search(embedding, limit=search_k)
-                stats = {
-                    "mode": "vector",
-                    "vector_results": len(results) if results is not None else 0
-                }
+                # Build filters based on analysis
+                # Use doc_type_hint for soft filtering/boosting
+                if query_analysis.get('doc_type_hint'):
+                    filters['doc_type_hint'] = query_analysis['doc_type_hint']
+                
+                # Use temporal hint for sorting
+                if query_analysis.get('temporal_hint'):
+                    filters['temporal_hint'] = query_analysis['temporal_hint']
+                
+                # Use keywords for boosting
+                if query_analysis.get('keywords'):
+                    filters['keywords'] = query_analysis['keywords']
+            # Stage 1: Focused search with smart filtering
+            results = None
+            stats = {"query_analysis": query_analysis} if query_analysis else {}
+            
+            if use_smart_filtering and filters:
+                # Try focused search first
+                results, focused_stats = self._smart_filtered_search(
+                    query, k, search_mode, alpha, filters
+                )
+                stats.update(focused_stats)
+                
+                # Check if we need to expand search
+                if results is not None and not results.empty:
+                    # Calculate result quality (using score if available)
+                    avg_score = results['_distance'].mean() if '_distance' in results.columns else 0.5
+                    quality = 1.0 - avg_score  # Convert distance to quality
+                    
+                    if self.query_analyzer.should_expand_search(quality, threshold=0.3):
+                        logger.info("Expanding search due to low quality results")
+                        # Fall through to broad search
+                        results = None
+                        stats['search_expanded'] = True
+            
+            # Stage 2: Broad search (if needed or if smart filtering disabled)
+            if results is None or results.empty:
+                # Get initial search results
+                if self.use_hybrid and self.hybrid_search:
+                    # Use hybrid search - get more results if reranking
+                    search_k = k * 3 if self.use_reranking else k
+                    results, broad_stats = self.hybrid_search.search(
+                        query, search_k, alpha, search_mode
+                    )
+                    stats.update(broad_stats)
+                else:
+                    # Fallback to vector-only search
+                    embedding = self.embedding_service.embed_query(query)
+                    if embedding is None:
+                        return None, {"error": "Failed to generate embedding"}
+                    
+                    search_k = k * 3 if self.use_reranking else k
+                    results = self.db_manager.search(embedding, limit=search_k)
+                    stats.update({
+                        "mode": "vector",
+                        "vector_results": len(results) if results is not None else 0
+                    })
             
             # Apply reranking if enabled
             if self.use_reranking and self.reranker and results is not None and not results.empty:
@@ -232,3 +286,174 @@ class SearchService:
         user = f"Question: {query}\n\nContext:\n" + "\n".join(bullets)
         
         return system, user, "\n".join(cites)
+    
+    def _smart_filtered_search(
+        self,
+        query: str,
+        k: int,
+        search_mode: str,
+        alpha: float,
+        filters: Dict
+    ) -> Tuple[Optional[pd.DataFrame], Dict]:
+        """
+        Perform search with smart filtering based on clusters and metadata.
+        
+        Args:
+            query: Search query
+            k: Number of results
+            search_mode: Search mode
+            alpha: Hybrid search weight
+            filters: Filter criteria
+        
+        Returns:
+            Tuple of (filtered results, statistics)
+        """
+        import numpy as np
+        stats = {"filtering": "enabled", "filters_applied": filters}
+        
+        try:
+            # Get query embedding
+            query_embedding = self.embedding_service.embed_query(query)
+            if query_embedding is None:
+                return None, {"error": "Failed to generate query embedding"}
+            
+            # Load cluster information if available
+            table = self.db_manager.get_table()
+            all_data = table.to_pandas()
+            
+            if all_data.empty:
+                return None, {"error": "No indexed documents"}
+            
+            # Find relevant clusters
+            cluster_filter = None
+            if 'cluster_id' in all_data.columns and len(all_data['cluster_id'].unique()) > 1:
+                # Initialize clusterer with saved cluster centers if needed
+                if self.clusterer is None:
+                    self.clusterer = DocumentClusterer()
+                    # Get unique cluster centers from data
+                    cluster_centers = []
+                    for cluster_id in sorted(all_data['cluster_id'].unique()):
+                        cluster_data = all_data[all_data['cluster_id'] == cluster_id]
+                        if not cluster_data.empty:
+                            # Use first vector as approximation of center
+                            center = np.array(cluster_data.iloc[0]['vector'])
+                            cluster_centers.append(center)
+                    
+                    if cluster_centers:
+                        self.clusterer.cluster_centers = np.array(cluster_centers)
+                        self.clusterer.n_clusters = len(cluster_centers)
+                
+                # Find nearest clusters
+                if self.clusterer and self.clusterer.cluster_centers is not None:
+                    query_embedding_np = np.array(query_embedding)
+                    nearest_clusters = self.clusterer.find_nearest_clusters(
+                        query_embedding_np, top_k=2
+                    )
+                    cluster_filter = nearest_clusters
+                    stats['clusters_searched'] = nearest_clusters
+            
+            # Apply filters to create search subset
+            filtered_data = all_data.copy()  # Create a copy to avoid SettingWithCopyWarning
+            
+            # Filter by clusters
+            if cluster_filter is not None:
+                filtered_data = filtered_data[filtered_data['cluster_id'].isin(cluster_filter)]
+                stats['cluster_filtered_count'] = len(filtered_data)
+            
+            # Apply soft filtering/boosting based on doc type hint
+            if filters.get('doc_type_hint') and 'doc_type' in filtered_data.columns:
+                # Boost documents matching the doc type hint
+                doc_type_hint = filters['doc_type_hint']
+                # Priority order: exact match > source name match > partial match
+                if doc_type_hint == 'meeting':
+                    # For meeting queries, strongly prioritize files with "meeting" in the name
+                    filtered_data['boost_score'] = filtered_data.apply(
+                        lambda row: (
+                            5.0 if 'meeting' in str(row.get('source', '')).lower() else
+                            3.0 if row.get('doc_type') == 'meeting' else
+                            1.0 if 'meeting' in str(row.get('chunk', '')).lower()[:200] else
+                            0.0
+                        ), axis=1
+                    )
+                else:
+                    filtered_data['boost_score'] = filtered_data['doc_type'].apply(
+                        lambda x: 2.0 if x == doc_type_hint else 0.0
+                    )
+                stats['doc_type_boost'] = doc_type_hint
+            else:
+                filtered_data['boost_score'] = 0.0
+            
+            # Apply temporal sorting if requested
+            if filters.get('temporal_hint') == 'recent' and 'file_modified' in filtered_data.columns:
+                # Sort by modification time for recent documents
+                filtered_data = filtered_data.sort_values('file_modified', ascending=False)
+                stats['temporal_sort'] = 'recent'
+            
+            # Boost by keywords in content or metadata
+            if filters.get('keywords'):
+                keyword_boost = 0.0
+                for keyword in filters['keywords']:
+                    keyword_lower = keyword.lower()
+                    # Check in source name (highest boost)
+                    filtered_data['boost_score'] += filtered_data['source'].apply(
+                        lambda x: 1.5 if keyword_lower in str(x).lower() else 0.0
+                    )
+                    # Check in keywords field
+                    if 'doc_keywords' in filtered_data.columns:
+                        filtered_data['boost_score'] += filtered_data['doc_keywords'].apply(
+                            lambda x: 1.0 if pd.notna(x) and keyword_lower in str(x).lower() else 0.0
+                        )
+                    # Check in chunk content (lower boost)
+                    filtered_data['boost_score'] += filtered_data['chunk'].apply(
+                        lambda x: 0.5 if keyword_lower in str(x).lower()[:500] else 0.0
+                    )
+                stats['keyword_boost'] = filters['keywords']
+            
+            if filtered_data.empty:
+                logger.info("No documents match filters, returning None")
+                return None, stats
+            
+            # Perform search on filtered subset
+            if self.use_hybrid and self.hybrid_search:
+                # For hybrid search, we need to pass the filtered IDs
+                filtered_ids = filtered_data['id'].tolist()
+                search_k = min(k * 2, len(filtered_data))  # Don't request more than available
+                
+                # Perform hybrid search with ID filter
+                results, search_stats = self.hybrid_search.search(
+                    query, search_k, alpha, search_mode,
+                    filter_ids=filtered_ids  # Pass filtered IDs
+                )
+                stats.update(search_stats)
+            else:
+                # Vector search on filtered data
+                filtered_vectors = np.array(filtered_data['vector'].tolist())
+                query_vec = np.array(query_embedding)
+                
+                # Compute cosine similarities
+                similarities = np.dot(filtered_vectors, query_vec) / (
+                    np.linalg.norm(filtered_vectors, axis=1) * np.linalg.norm(query_vec)
+                )
+                
+                # Combine similarity with boost scores
+                boost_scores = filtered_data['boost_score'].values if 'boost_score' in filtered_data.columns else np.zeros(len(filtered_data))
+                # Normalize boost scores to 0-0.3 range to not overwhelm similarity
+                max_boost = max(boost_scores.max(), 1.0)
+                normalized_boosts = (boost_scores / max_boost) * 0.3
+                final_scores = similarities + normalized_boosts
+                
+                # Get top k results
+                top_k_indices = np.argsort(final_scores)[::-1][:k]
+                results = filtered_data.iloc[top_k_indices].copy()
+                results['_distance'] = 1 - similarities[top_k_indices]  # Keep original distance
+                results['_score'] = final_scores[top_k_indices]  # Add combined score
+                
+                stats['mode'] = 'vector_filtered'
+                stats['filtered_search_space'] = len(filtered_data)
+            
+            stats['results_count'] = len(results) if results is not None else 0
+            return results, stats
+            
+        except Exception as e:
+            logger.error(f"Smart filtered search failed: {e}")
+            return None, {"error": str(e)}
