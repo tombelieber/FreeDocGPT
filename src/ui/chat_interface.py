@@ -8,6 +8,7 @@ import streamlit as st
 from ..config import get_settings
 from ..utils import check_ollama_status
 from ..core import SearchService, ChatService, VisionChatService
+from ..core.meta_handler import MetaQueryHandler
 from ..document_processing import VisionDocumentReader
 from .i18n import t
 
@@ -82,6 +83,27 @@ def render_chat_interface(search_service: SearchService, chat_service: ChatServi
         
         # Generate response
         with st.chat_message("assistant"):
+            # Check if this is a meta-query about the index
+            meta_handler = MetaQueryHandler(search_service.db_manager)
+            query_type = meta_handler.is_meta_query(prompt)
+            
+            if query_type:
+                # Handle meta-query directly without search
+                meta_response = meta_handler.handle_meta_query(prompt, query_type)
+                
+                if meta_response['success']:
+                    st.markdown(meta_response['message'])
+                    
+                    # Add to session state
+                    st.session_state.messages.append({
+                        "role": "assistant", 
+                        "content": meta_response['message']
+                    })
+                else:
+                    st.error(meta_response['message'])
+                
+                return  # Exit early for meta-queries
+            
             # Initialize detailed timing tracking
             pipeline_start = time.time()
             stage_times = {
@@ -140,7 +162,8 @@ def render_chat_interface(search_service: SearchService, chat_service: ChatServi
                 
                 st.success(f"✅ {search_info}")
                 
-                with st.expander("📖 Sources", expanded=False):
+                with st.expander("📄 **Sources**", expanded=False):
+                    st.markdown("### Documents Referenced:")
                     st.markdown(citations)
                     
                     # Show search optimization details if available

@@ -277,7 +277,23 @@ class SearchService:
         
         contexts = search_results.to_dict("records")
         bullets = [f"• {c['chunk'][:500]}" for c in contexts]
-        cites = [f"[{i}] {c['source']}" for i, c in enumerate(contexts, 1)]
+        
+        # Group chunks by source document for cleaner citation display
+        from collections import OrderedDict
+        doc_chunks = OrderedDict()
+        for i, c in enumerate(contexts, 1):
+            source = c['source']
+            if source not in doc_chunks:
+                doc_chunks[source] = []
+            doc_chunks[source].append(i)
+        
+        # Format citations to show documents with their chunk counts
+        citation_lines = []
+        for doc_num, (doc_name, chunk_nums) in enumerate(doc_chunks.items(), 1):
+            if len(chunk_nums) == 1:
+                citation_lines.append(f"[{doc_num}] **{doc_name}** (1 relevant section)")
+            else:
+                citation_lines.append(f"[{doc_num}] **{doc_name}** ({len(chunk_nums)} relevant sections)")
         
         # Ensure the prompt is loaded only when we actually need it
         self._ensure_system_prompt()
@@ -285,7 +301,7 @@ class SearchService:
         
         user = f"Question: {query}\n\nContext:\n" + "\n".join(bullets)
         
-        return system, user, "\n".join(cites)
+        return system, user, "\n".join(citation_lines)
     
     def _smart_filtered_search(
         self,
