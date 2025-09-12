@@ -4,6 +4,7 @@ from typing import Optional
 import lancedb
 import pandas as pd
 import pyarrow as pa
+import streamlit as st
 
 from ..config import get_settings
 
@@ -89,8 +90,12 @@ class DatabaseManager:
                 logger.warning("Detected LanceDB table corruption; resetting table")
                 try:
                     self.clear_index()
-                    import streamlit as st
-                    st.warning("Detected corrupted index. Resetting LanceDB table; please re-index your documents.")
+                    # Lazy import to avoid circular dependency
+                    try:
+                        from ..ui.i18n import t
+                        st.warning(t("ui.corrupted_index_warning"))
+                    except ImportError:
+                        st.warning("Detected corrupted index. Resetting LanceDB table; please re-index your documents.")
                 except Exception:
                     pass
             else:

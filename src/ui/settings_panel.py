@@ -327,22 +327,63 @@ def _render_models_tab(settings, search_service):
         
         from pathlib import Path
         
-        # Resolve prompt path similarly to SearchService
-        prompt_path = settings.system_prompt_path
-        candidate = Path(prompt_path)
-        if not candidate.is_absolute():
-            repo_root = Path(__file__).resolve().parents[2]
-            candidate = repo_root / candidate
+        # Load prompt using language-aware logic (same as SearchService)
+        def load_language_aware_prompt():
+            """Load system prompt based on current UI language, falling back to default."""
+            try:
+                from ..ui.i18n import get_locale
+                
+                current_locale = get_locale()
+                
+                # Map locales to prompt file names
+                prompt_files = {
+                    "en": "rag_prompt_en.md",
+                    "zh-Hant": "rag_prompt_zh_hant.md", 
+                    "zh-Hans": "rag_prompt_zh_hans.md",
+                    "es": "rag_prompt_es.md",
+                    "ja": "rag_prompt_ja.md"
+                }
+                
+                # Get the appropriate prompt file for current language
+                prompt_filename = prompt_files.get(current_locale, "rag_prompt_en.md")
+                
+                # Try language-specific prompt first
+                repo_root = Path(__file__).resolve().parents[2]
+                candidate = repo_root / prompt_filename
+                
+                if candidate.exists() and candidate.is_file():
+                    content = candidate.read_text(encoding="utf-8").strip()
+                    if content:
+                        return content
+                
+                # Fallback to configured path (backward compatibility)
+                prompt_path = settings.system_prompt_path
+                fallback_candidate = Path(prompt_path)
+                if not fallback_candidate.is_absolute():
+                    fallback_candidate = repo_root / fallback_candidate
+                    
+                if fallback_candidate.exists() and fallback_candidate.is_file():
+                    content = fallback_candidate.read_text(encoding="utf-8").strip()
+                    if content:
+                        return content
+                        
+            except Exception:
+                pass
+            return ""
         
         # Initialize session state for custom prompt
         if 'custom_system_prompt' not in st.session_state:
-            try:
-                if candidate.exists():
-                    st.session_state.custom_system_prompt = candidate.read_text(encoding="utf-8")
-                else:
-                    st.session_state.custom_system_prompt = ""
-            except Exception:
-                st.session_state.custom_system_prompt = ""
+            st.session_state.custom_system_prompt = load_language_aware_prompt()
+        
+        # Check if language changed and reload prompt accordingly
+        from ..ui.i18n import get_locale
+        current_locale = get_locale()
+        if 'last_prompt_locale' not in st.session_state:
+            st.session_state.last_prompt_locale = current_locale
+        elif st.session_state.last_prompt_locale != current_locale:
+            # Language changed, reload prompt
+            st.session_state.custom_system_prompt = load_language_aware_prompt()
+            st.session_state.last_prompt_locale = current_locale
         
         # Tab interface for prompt customization
         prompt_tab1, prompt_tab2 = st.tabs([
@@ -366,26 +407,42 @@ def _render_models_tab(settings, search_service):
             with col1:
                 if st.button("💾 Save Changes", type="primary", use_container_width=True):
                     try:
-                        # Write the edited prompt to file
-                        candidate.write_text(edited_prompt, encoding="utf-8")
+                        # Save to the appropriate language-specific file
+                        current_locale = get_locale()
+                        prompt_files = {
+                            "en": "rag_prompt_en.md",
+                            "zh-Hant": "rag_prompt_zh_hant.md", 
+                            "zh-Hans": "rag_prompt_zh_hans.md",
+                            "es": "rag_prompt_es.md",
+                            "ja": "rag_prompt_ja.md"
+                        }
+                        
+                        prompt_filename = prompt_files.get(current_locale, "rag_prompt_en.md")
+                        repo_root = Path(__file__).resolve().parents[2]
+                        target_file = repo_root / prompt_filename
+                        
+                        # Write the edited prompt to language-specific file
+                        target_file.write_text(edited_prompt, encoding="utf-8")
                         st.session_state.custom_system_prompt = edited_prompt
                         
                         # Reload the search service if available
                         if search_service is not None:
                             search_service.reload_system_prompt()
                         
-                        st.success("✅ System prompt saved and reloaded!")
+                        st.success(f"✅ System prompt saved to {prompt_filename} and reloaded!")
                     except Exception as e:
                         st.error(f"❌ Error saving prompt: {str(e)}")
             
             with col2:
                 if st.button("🔄 Reset", use_container_width=True):
                     try:
-                        if candidate.exists():
-                            st.session_state.custom_system_prompt = candidate.read_text(encoding="utf-8")
-                            st.success("✅ Prompt reset to file content")
+                        # Reset to language-appropriate prompt
+                        reset_content = load_language_aware_prompt()
+                        if reset_content:
+                            st.session_state.custom_system_prompt = reset_content
+                            st.success("✅ Prompt reset to current language default")
                         else:
-                            st.warning("⚠️ Prompt file not found")
+                            st.warning("⚠️ No prompt file found for current language")
                         st.rerun()
                     except Exception as e:
                         st.error(f"❌ Error resetting: {str(e)}")

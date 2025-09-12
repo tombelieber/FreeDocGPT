@@ -98,7 +98,12 @@ class DocumentIndexer:
     ):
         """Index multiple documents into the vector database."""
         if not files:
-            st.warning("No files to index")
+            # Lazy import to avoid circular dependency
+            try:
+                from ..ui.i18n import t
+                st.warning(t("ui.no_files_to_index"))
+            except ImportError:
+                st.warning("No files to index")
             return
         
         # Use incremental indexer to filter files
@@ -139,7 +144,12 @@ class DocumentIndexer:
         st.info(f"📊 Processing {' and '.join(status_parts)} document(s)...")
         
         if auto_detect:
-            st.info("🤖 Auto-detecting document types for optimal processing...")
+            # Lazy import to avoid circular dependency
+            try:
+                from ..ui.i18n import t
+                st.info(t("ui.auto_detecting"))
+            except ImportError:
+                st.info("🤖 Auto-detecting document types for optimal processing...")
         
         all_docs = []
         doc_stats = {"meeting": 0, "prd": 0, "technical": 0, "wiki": 0, "general": 0}

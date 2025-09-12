@@ -6,6 +6,7 @@ import streamlit as st
 import plotly.graph_objects as go
 from typing import Dict, List, Optional
 import math
+from .i18n import t
 
 class ContextVisualizer:
     """Visualize context usage with interactive ring chart."""
@@ -105,7 +106,7 @@ class ContextVisualizer:
         context_usage: Dict[str, int]
     ) -> None:
         """Create progress bars for each context category."""
-        st.markdown("### Context Breakdown")
+        st.markdown(f"### {t('context.breakdown')}")
         
         total_used = sum(context_usage.values())
         
@@ -135,7 +136,7 @@ class ContextVisualizer:
         
         col1, col2, col3 = st.columns([2, 3, 1])
         with col1:
-            st.markdown("**Free Space**")
+            st.markdown(f"**{t('context.free_space')}**")
         with col2:
             st.markdown(
                 f"""
@@ -213,39 +214,39 @@ def render_context_usage_widget(
         visualizer.create_progress_bars(usage)
     
     with tab3:
-        st.markdown("### Detailed Token Usage")
+        st.markdown(f"### {t('context.detailed_usage')}")
         
         total_used = sum(usage.values())
         free_space = visualizer.max_tokens - total_used
         
         col1, col2 = st.columns(2)
         with col1:
-            st.metric("Total Used", f"{total_used:,} tokens", 
+            st.metric(t('context.total_used'), f"{total_used:,} tokens", 
                      f"{(total_used/visualizer.max_tokens)*100:.1f}%")
-            st.metric("System Prompt", f"{usage['system']:,} tokens")
-            st.metric("Conversation History", f"{usage['history']:,} tokens")
+            st.metric(t('context.system_prompt'), f"{usage['system']:,} tokens")
+            st.metric(t('context.conversation_history'), f"{usage['history']:,} tokens")
         
         with col2:
-            st.metric("Free Space", f"{free_space:,} tokens",
+            st.metric(t('context.free_space_metric'), f"{free_space:,} tokens",
                      f"{(free_space/visualizer.max_tokens)*100:.1f}%")
-            st.metric("Current Query", f"{usage['current']:,} tokens")
-            st.metric("Retrieved Documents", f"{usage['documents']:,} tokens")
+            st.metric(t('context.current_query'), f"{usage['current']:,} tokens")
+            st.metric(t('context.retrieved_documents'), f"{usage['documents']:,} tokens")
         
         # Recommendations
-        st.markdown("### 💡 Optimization Tips")
+        st.markdown(f"### {t('context.optimization_tips')}")
         
         if usage['history'] > 10000:
-            st.warning("⚠️ Conversation history is large. Consider starting a new chat for better performance.")
+            st.warning(t('context.warning_large_history'))
         
         if usage['documents'] > 5000:
-            st.info("📄 Many documents in context. Try more specific queries to reduce retrieval size.")
+            st.info(t('context.info_many_docs'))
         
         if (total_used / visualizer.max_tokens) > 0.75:
-            st.error("🔴 Context usage is high (>75%). Response quality may degrade. Consider clearing history.")
+            st.error(t('context.error_high_usage'))
         elif (total_used / visualizer.max_tokens) > 0.5:
-            st.warning("🟡 Context usage is moderate (>50%). Monitor token usage.")
+            st.warning(t('context.warning_moderate_usage'))
         else:
-            st.success("🟢 Context usage is healthy (<50%). Plenty of room for conversation.")
+            st.success(t('context.success_healthy_usage'))
 
 
 if __name__ == "__main__":

@@ -124,7 +124,7 @@ def main():
             )
     
     # Title and description
-    st.title(settings.page_title)
+    st.title(t("app.title"))
     st.markdown(t("app.subtitle", "Free, local document buddy — drop files in `documents/` and start asking questions."))
     
     # Initialize services

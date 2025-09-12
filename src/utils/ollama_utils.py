@@ -5,6 +5,7 @@ import requests
 import streamlit as st
 
 from ..config import get_settings
+from ..ui.i18n import t
 
 logger = logging.getLogger(__name__)
 
@@ -77,15 +78,12 @@ def display_ollama_status():
             st.info(f"✅ Embedding model '{settings.embed_model}' is available")
         
         if not status["gen_model_available"]:
-            st.error(
-                f"❌ Generation model '{settings.gen_model}' not found. "
-                f"Please run: `ollama pull {settings.gen_model}`"
-            )
+            st.error(t("ollama.error_gen_model_not_found", model=settings.gen_model))
         else:
-            st.info(f"✅ Generation model '{settings.gen_model}' is available")
+            st.info(t("ollama.info_gen_model_available", model=settings.gen_model))
     else:
         error_msg = status["error"]
         if "Cannot connect" in error_msg:
-            st.error("❌ Cannot connect to Ollama. Make sure it's running with: `ollama serve`")
+            st.error(t("ollama.error_cannot_connect"))
         else:
-            st.error(f"❌ Ollama error: {error_msg}")
+            st.error(t("ollama.error_general", error=error_msg))

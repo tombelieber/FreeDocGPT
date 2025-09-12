@@ -24,7 +24,7 @@ def render_sidebar(db_manager: DatabaseManager, indexer: DocumentIndexer, search
             _render_models_tab(settings, search_service)
             
         with tab4:  # Settings
-            _render_settings_tab(settings)
+            _render_settings_tab(settings, search_service)
 
 
 def _render_documents_tab(db_manager: DatabaseManager, indexer: DocumentIndexer, settings):
@@ -82,8 +82,7 @@ def _render_documents_tab(db_manager: DatabaseManager, indexer: DocumentIndexer,
             st.metric("Chunks", total_chunks)
             
         if st.button("🧹 Reset Index", use_container_width=True):
-            _clear_index(db_manager, indexer)
-            st.rerun()
+            _show_reset_confirmation_dialog(db_manager, indexer)
             
         # Detailed view
         with st.expander("View indexed", expanded=True):
@@ -91,8 +90,7 @@ def _render_documents_tab(db_manager: DatabaseManager, indexer: DocumentIndexer,
     else:
         st.info("No documents indexed")
         if st.button("🧹 Reset Index", use_container_width=True):
-            _clear_index(db_manager, indexer)
-            st.rerun()
+            _show_reset_confirmation_dialog(db_manager, indexer)
 
 
 def _render_search_tab(settings, search_service):
@@ -233,7 +231,7 @@ def _render_models_tab(settings, search_service):
                     st.error(f"❌ Error: {e}")
 
 
-def _render_settings_tab(settings):
+def _render_settings_tab(settings, search_service=None):
     """Settings tab - general application settings."""
     st.markdown("### ⚙️ Settings")
     
@@ -259,6 +257,13 @@ def _render_settings_tab(settings):
         try:
             st.query_params["locale"] = choice
             save_locale(choice)
+            # Reload system prompt with new language
+            if search_service is not None:
+                try:
+                    search_service.reload_system_prompt()
+                    st.success("✅ Language changed and system prompt reloaded!")
+                except Exception as e:
+                    st.warning(f"⚠️ Language changed but failed to reload prompt: {e}")
         except Exception:
             pass
         st.rerun()
@@ -378,6 +383,29 @@ Note: More results = better coverage but higher costs and slower responses"""
         st.metric("Overlap", f"{overlap_size} chars", help="Shared characters between chunks")  
     with config_cols[2]:
         st.metric("Results", f"{top_k}", help="Chunks retrieved per query")
+
+
+@st.dialog("Reset Index Confirmation")
+def _show_reset_confirmation_dialog(db_manager: DatabaseManager, indexer: DocumentIndexer):
+    """Show confirmation dialog for resetting the index."""
+    st.warning("⚠️ **Warning**: This action cannot be undone!")
+    st.markdown("This will permanently delete:")
+    st.markdown("- All indexed documents and their embeddings")
+    st.markdown("- Vector database entries")
+    st.markdown("- Search index data")
+    st.markdown("")
+    st.markdown("You will need to re-index your documents to restore search functionality.")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.button("❌ Cancel", use_container_width=True):
+            st.rerun()
+    
+    with col2:
+        if st.button("🗑️ Confirm Reset", type="primary", use_container_width=True):
+            _clear_index(db_manager, indexer)
+            st.rerun()
 
 
 def _clear_index(db_manager: DatabaseManager, indexer: DocumentIndexer):

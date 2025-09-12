@@ -62,7 +62,7 @@ class Settings:
     })
     
     # UI settings
-    page_title: str = "📚 FreeDocBuddy（免費文件夥伴）"
+    page_title: str = "📚 FreeDocBuddy"
     page_icon: str = "📚"
     layout: str = "wide"
     default_locale: str = field(default_factory=lambda: _getenv("DEFAULT_LOCALE", "en"))
