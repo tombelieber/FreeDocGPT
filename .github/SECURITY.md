@@ -4,7 +4,7 @@
 We support the latest commit on `main`.
 
 ## Reporting a Vulnerability
-Please email security@vickyai.io (or use GitHub’s “Report a vulnerability” feature).
+Please use GitHub's "Report a vulnerability" feature or contact the project maintainers.
 We aim to respond within 72 hours.
 
 ## Scope

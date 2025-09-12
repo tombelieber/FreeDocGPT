@@ -133,7 +133,7 @@ def render_chat_interface(search_service: SearchService, chat_service: ChatServi
             if 'to_first_token' in stage_durations:
                 stage_parts.append(f"🚀 {stage_durations['to_first_token']:.1f}s")
             if stage_parts:
-                st.caption("**Pipeline Stages:** " + " • ".join(stage_parts))
+                st.caption(t("chat.pipeline_stages", "**Pipeline Stages:**") + " " + " • ".join(stage_parts))
         st.divider()
     
     # Display chat history
@@ -265,13 +265,13 @@ def render_chat_interface(search_service: SearchService, chat_service: ChatServi
                 st.success(f"✅ {search_info}")
                 
                 with st.expander("📄 **Sources**", expanded=False):
-                    st.markdown("### Documents Referenced:")
+                    st.markdown(t("chat.documents_referenced", "### Documents Referenced:"))
                     st.markdown(citations)
                     
                     # Show search optimization details if available
                     if search_stats and 'query_analysis' in search_stats:
                         st.divider()
-                        st.caption("🎯 Smart Search Optimization:")
+                        st.caption(t("chat.smart_search_optimization", "🎯 Smart Search Optimization:"))
                         
                         analysis = search_stats.get('query_analysis', {})
                         if analysis.get('likely_types'):

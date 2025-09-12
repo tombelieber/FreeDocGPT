@@ -1,4 +1,4 @@
-# 📚 FreeDocBuddy（免費文件夥伴）
+# 📚 FreeDocGPT（免費文件GPT）
 
 Language Quick Start · 語言 · 语言 · Idiomas · 言語
 - English: see [Quick Start (EN)](#quick-start-en)
@@ -7,11 +7,20 @@ Language Quick Start · 語言 · 语言 · Idiomas · 言語
 - Español: ver [Inicio Rápido (ES)](#quick-start-es)
 - 日本語: [クイックスタート (JA)](#quick-start-ja)
 
-Your free, local document buddy — read, search, ask, and learn from multiple files without cloud costs or API keys.
+Your free, local document AI assistant — read, search, ask, and learn from multiple files without cloud costs or API keys.
 
 > 零成本、本地運行、私密安全。把檔案丟進 `documents/`，就能閱讀、搜尋、問答、整理、學習。
 
 With local models like gpt-oss:20b and Embedding Gemma available in Ollama, you can run this AI document helper fully on your Mac — no cloud, no sign‑ups. Just drop files and ask.
+
+## 💬 Community & Support
+
+Join our Discord community for support, discussions, and updates: [https://discord.gg/usRtaeY8](https://discord.gg/usRtaeY8)
+
+- 🤝 Get help from the community
+- 🐛 Report issues and bugs
+- 💡 Share feature ideas and feedback  
+- 📢 Stay updated on new releases
 
 —
 
@@ -35,12 +44,12 @@ Open‑source model releases make private, on‑your‑Mac AI document help poss
 - Embedding Gemma helps the app quickly "remember" what's in your files.
 - With Ollama, these run on your computer — no cloud accounts, no fees, and your files never leave your device.
 
-Why we built FreeDocBuddy:
-- So you don’t miss this moment just because it used to be “too technical”.
-- A friendly app: drop files, press “Index”, then ask questions in plain language.
-- Sensible defaults baked in; you don’t need to know how it works inside.
+Why we built FreeDocGPT:
+- So you don't miss this moment just because it used to be "too technical".
+- A friendly app: drop files, press "Index", then ask questions in plain language.
+- Sensible defaults baked in; you don't need to know how it works inside.
 
-In short: Modern local models make trustworthy, private document help possible at home. FreeDocBuddy puts it one click away.
+In short: Modern local models make trustworthy, private document help possible at home. FreeDocGPT puts it one click away.
 
 ## 👋 For Everyone (No Tech Needed)
 

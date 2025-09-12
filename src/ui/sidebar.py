@@ -95,7 +95,7 @@ def _render_documents_tab(db_manager: DatabaseManager, indexer: DocumentIndexer,
 
 def _render_search_tab(settings, search_service):
     """Search tab - search configuration and controls."""
-    st.markdown("### 🔍 Search")
+    st.markdown(t("sidebar.search_title", "### 🔍 Search"))
     
     # Ensure top_k is initialized for consistency with Settings tab
     if 'top_k' not in st.session_state:
@@ -131,10 +131,10 @@ def _render_search_tab(settings, search_service):
 
 def _render_models_tab(settings, search_service):
     """Models tab - AI model configuration."""
-    st.markdown("### 🤖 Models")
+    st.markdown(t("sidebar.models_title", "### 🤖 Models"))
     
     # Model status
-    st.markdown("**Current Models**")
+    st.markdown(t("sidebar.current_models", "**Current Models**"))
     st.caption(f"🔤 Embedding: {settings.embed_model}")
     st.caption(f"💬 Generation: {settings.gen_model}")
     
@@ -168,13 +168,13 @@ def _render_models_tab(settings, search_service):
         help="Model for chat responses"
     )
     
-    if st.button("🔍 Check Ollama Status", use_container_width=True):
+    if st.button(t("sidebar.check_ollama_status", "🔍 Check Ollama Status"), use_container_width=True):
         from ..utils import display_ollama_status
         display_ollama_status()
     
     # System prompt
     st.divider()
-    st.markdown("**System Prompt**")
+    st.markdown(t("sidebar.system_prompt", "**System Prompt**"))
     
     from pathlib import Path
     
@@ -203,30 +203,30 @@ def _render_models_tab(settings, search_service):
         
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("💾 Save", type="primary", use_container_width=True):
+            if st.button(t("sidebar.save", "💾 Save"), type="primary", use_container_width=True):
                 try:
                     candidate.write_text(edited_prompt, encoding="utf-8")
                     st.session_state.custom_system_prompt = edited_prompt
                     if search_service:
                         search_service.reload_system_prompt()
-                    st.success("✅ Saved!")
+                    st.success(t("common.saved", "✅ Saved!"))
                 except Exception as e:
-                    st.error(f"❌ Error: {e}")
+                    st.error(t("sidebar.error", "❌ Error: {error}", error=str(e)))
         
         with col2:
-            if st.button("🔄 Reset", use_container_width=True):
+            if st.button(t("common.reset", "🔄 Reset"), use_container_width=True):
                 try:
                     if candidate.exists():
                         st.session_state.custom_system_prompt = candidate.read_text(encoding="utf-8")
-                        st.success("✅ Reset!")
+                        st.success(t("common.reset_success", "✅ Reset!"))
                     st.rerun()
                 except Exception as e:
-                    st.error(f"❌ Error: {e}")
+                    st.error(t("sidebar.error", "❌ Error: {error}", error=str(e)))
 
 
 def _render_settings_tab(settings, search_service=None):
     """Settings tab - general application settings."""
-    st.markdown("### ⚙️ Settings")
+    st.markdown(t("sidebar.settings_title", "### ⚙️ Settings"))
     
     # Language
     current = get_locale()
@@ -254,9 +254,9 @@ def _render_settings_tab(settings, search_service=None):
             if search_service is not None:
                 try:
                     search_service.reload_system_prompt()
-                    st.success("✅ Language changed and system prompt reloaded!")
+                    st.success(t("sidebar.language_success", "✅ Language changed and system prompt reloaded!"))
                 except Exception as e:
-                    st.warning(f"⚠️ Language changed but failed to reload prompt: {e}")
+                    st.warning(t("sidebar.language_changed_warning", "⚠️ Language changed but failed to reload prompt: {error}", error=str(e)))
             # Clear the cached system prompt in settings panel session state
             if 'custom_system_prompt' in st.session_state:
                 del st.session_state.custom_system_prompt
@@ -268,7 +268,7 @@ def _render_settings_tab(settings, search_service=None):
     
     # Interface settings
     st.divider()
-    st.markdown("**Interface**")
+    st.markdown(t("sidebar.interface", "**Interface**"))
     
     completion_sound = st.checkbox(
         "🔊 Completion Sound",
@@ -279,7 +279,7 @@ def _render_settings_tab(settings, search_service=None):
     
     # Document Processing Settings
     st.divider()
-    st.markdown("**Document Processing**")
+    st.markdown(t("sidebar.document_processing", "**Document Processing**"))
     
     # Initialize session state for processing settings
     if 'chunk_size' not in st.session_state:

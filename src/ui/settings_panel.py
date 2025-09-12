@@ -103,8 +103,8 @@ def _render_quick_setup_tab():
     
     # Sub-group 2: Current Configuration Overview
     with st.container():
-        st.markdown("#### 📊 Current Configuration")
-        st.caption("Real-time overview of your active settings")
+        st.markdown(t("settings.current_configuration_title", "#### 📊 Current Configuration"))
+        st.caption(t("settings.current_config_caption", "Real-time overview of your active settings"))
         
         config_cols = st.columns(3)
         
@@ -113,27 +113,27 @@ def _render_quick_setup_tab():
         top_k = st.session_state.top_k
         
         with config_cols[0]:
-            st.metric("Chunk Size", f"{chunk_size} chars")
+            st.metric(t("settings.chunk_size_metric", "Chunk Size"), f"{chunk_size} chars")
             if chunk_size < 1000:
-                st.caption("⚠️ Small: Good for Q&A")
+                st.caption(t("settings.small_qa", "⚠️ Small: Good for Q&A"))
             elif chunk_size > 1500:
-                st.caption("📦 Large: Good for code")
+                st.caption(t("settings.large_code", "📦 Large: Good for code"))
             else:
-                st.caption("✅ Balanced")
+                st.caption(t("settings.balanced", "✅ Balanced"))
         
         with config_cols[1]:
-            st.metric("Overlap", f"{overlap_size} chars")
+            st.metric(t("settings.overlap_metric", "Overlap"), f"{overlap_size} chars")
             overlap_pct = (overlap_size / chunk_size * 100) if chunk_size > 0 else 0
             st.caption(f"{overlap_pct:.0f}% of chunk size")
         
         with config_cols[2]:
-            st.metric("Results", f"{top_k} chunks")
+            st.metric(t("settings.results_metric", "Results"), f"{top_k} chunks")
             if top_k <= 3:
-                st.caption("🎯 Focused search")
+                st.caption(t("settings.focused_search", "🎯 Focused search"))
             elif top_k >= 7:
-                st.caption("🌐 Comprehensive")
+                st.caption(t("settings.comprehensive", "🌐 Comprehensive"))
             else:
-                st.caption("⚖️ Balanced")
+                st.caption(t("settings.balanced_search", "⚖️ Balanced"))
     
     st.divider()
     
@@ -157,8 +157,8 @@ def _render_processing_tab():
     
     # Sub-group 1: Core Processing Settings
     with st.container():
-        st.markdown("#### 🔧 Core Processing Settings")
-        st.caption("Fine-tune how documents are chunked and processed")
+        st.markdown(t("settings.core_processing_title", "#### 🔧 Core Processing Settings"))
+        st.caption(t("settings.core_processing_caption", "Fine-tune how documents are chunked and processed"))
         
         chunk_size = st.slider(
             "📏 Chunk Size (characters per segment)",
@@ -184,8 +184,8 @@ def _render_processing_tab():
     
     # Sub-group 2: Search Configuration
     with st.container():
-        st.markdown("#### 🔍 Search Configuration")
-        st.caption("Control how many results are returned")
+        st.markdown(t("settings.search_config_title", "#### 🔍 Search Configuration"))
+        st.caption(t("settings.search_config_caption", "Control how many results are returned"))
         
         top_k = st.slider(
             "Search Results (number of relevant segments)",
@@ -200,19 +200,19 @@ def _render_processing_tab():
         scope_cols = st.columns(3)
         with scope_cols[0]:
             if top_k <= 3:
-                st.info("🎯 **Focused Search**\nFaster, more precise results")
+                st.info(t("settings.focused_search_info", "🎯 **Focused Search**\nFaster, more precise results"))
         with scope_cols[1]:
             if 4 <= top_k <= 6:
-                st.info("⚖️ **Balanced Search**\nGood mix of speed and coverage")
+                st.info(t("settings.balanced_search_info", "⚖️ **Balanced Search**\nGood mix of speed and coverage"))
         with scope_cols[2]:
             if top_k >= 7:
-                st.info("🌐 **Comprehensive Search**\nMore context, slower processing")
+                st.info(t("settings.comprehensive_search_info", "🌐 **Comprehensive Search**\nMore context, slower processing"))
     
     st.divider()
     
     # Sub-group 3: Document Type Guidelines
     with st.expander("📋 Document Type Guidelines", expanded=False):
-        st.markdown("#### 🎯 Optimized Settings by Document Type")
+        st.markdown(t("settings.optimized_settings_title", "#### 🎯 Optimized Settings by Document Type"))
         
         doc_cols = st.columns(2)
         
@@ -259,7 +259,7 @@ def _render_models_tab(settings, search_service):
     
     # Sub-group 1: Setup & Prerequisites
     with st.expander("⚙️ Prerequisites & Setup Guide", expanded=False):
-        st.markdown("#### 🛠️ Required Setup Steps")
+        st.markdown(t("settings.required_setup_title", "#### 🛠️ Required Setup Steps"))
         setup_cols = st.columns(2)
         
         with setup_cols[0]:
@@ -284,14 +284,14 @@ def _render_models_tab(settings, search_service):
             ```
             """)
         
-        st.info("💡 **Tip:** Keep Ollama running in the background for best performance")
+        st.info(t("settings.tip_keep_ollama_running", "💡 **Tip:** Keep Ollama running in the background for best performance"))
     
     st.divider()
     
     # Sub-group 2: Model Configuration
     with st.container():
-        st.markdown("#### 🤖 Model Configuration")
-        st.caption("Configure which models to use for embeddings and generation")
+        st.markdown(t("settings.model_config_title", "#### 🤖 Model Configuration"))
+        st.caption(t("settings.model_config_caption", "Configure which models to use for embeddings and generation"))
         
         model_cols = st.columns(2)
         
@@ -312,18 +312,18 @@ def _render_models_tab(settings, search_service):
         # Check Ollama connection
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("🔍 Check Ollama Status", use_container_width=True):
+            if st.button(t("settings.check_ollama_status", "🔍 Check Ollama Status"), use_container_width=True):
                 display_ollama_status()
         with col2:
-            if st.button("📋 List Available Models", use_container_width=True):
-                st.info("Use `ollama list` in terminal to see installed models")
+            if st.button(t("settings.list_available_models", "📋 List Available Models"), use_container_width=True):
+                st.info(t("settings.use_ollama_list_terminal", "Use `ollama list` in terminal to see installed models"))
     
     st.divider()
     
     # Sub-group 3: System Prompt Configuration
     with st.container():
-        st.markdown("#### 📝 System Prompt Configuration")
-        st.caption("Customize how the AI responds to your queries")
+        st.markdown(t("settings.system_prompt_config_title", "#### 📝 System Prompt Configuration"))
+        st.caption(t("settings.system_prompt_config_caption", "Customize how the AI responds to your queries"))
         
         from pathlib import Path
         
@@ -395,7 +395,7 @@ def _render_models_tab(settings, search_service):
         ])
         
         with prompt_tab1:
-            st.markdown("**Customize AI Behavior:**")
+            st.markdown(t("settings.customize_ai_behavior", "**Customize AI Behavior:**"))
             
             # Text editor for system prompt
             edited_prompt = st.text_area(
@@ -443,9 +443,9 @@ def _render_models_tab(settings, search_service):
                         reset_content = load_language_aware_prompt()
                         if reset_content:
                             st.session_state.custom_system_prompt = reset_content
-                            st.success("✅ Prompt reset to current language default")
+                            st.success(t("settings.prompt_reset_success", "✅ Prompt reset to current language default"))
                         else:
-                            st.warning("⚠️ No prompt file found for current language")
+                            st.warning(t("settings.no_prompt_file", "⚠️ No prompt file found for current language"))
                         st.rerun()
                     except Exception as e:
                         st.error(f"❌ Error resetting: {str(e)}")
@@ -455,14 +455,14 @@ def _render_models_tab(settings, search_service):
                     if search_service is not None:
                         try:
                             search_service.reload_system_prompt()
-                            st.success("✅ System prompt service reloaded")
+                            st.success(t("settings.system_prompt_reloaded", "✅ System prompt service reloaded"))
                         except Exception as e:
                             st.error(f"❌ Failed to reload: {str(e)}")
                     else:
-                        st.info("⚠️ Search service not available")
+                        st.info(t("settings.service_not_available", "⚠️ Search service not available"))
         
         with prompt_tab2:
-            st.markdown("**File Information:**")
+            st.markdown(t("settings.file_information", "**File Information:**"))
             st.code(str(candidate), language="text")
             
             # File status and preview
@@ -481,13 +481,13 @@ def _render_models_tab(settings, search_service):
                     # Preview toggle
                     show_preview = st.checkbox("Show content preview", value=False)
                     if show_preview:
-                        st.markdown("**Preview (first 300 characters):**")
+                        st.markdown(t("settings.preview_300_chars", "**Preview (first 300 characters):**"))
                         preview = st.session_state.custom_system_prompt[:300]
                         if len(st.session_state.custom_system_prompt) > 300:
                             preview += "..."
                         st.text(preview)
                 else:
-                    st.warning("⚠️ Prompt file not found; using default built-in prompt.")
+                    st.warning(t("settings.prompt_not_found", "⚠️ Prompt file not found; using default built-in prompt."))
             except Exception as e:
                 st.warning(f"⚠️ Could not read prompt file: {e}")
     
@@ -518,8 +518,8 @@ def _render_interface_tab(settings):
     
     # Sub-group 1: Notification Settings
     with st.container():
-        st.markdown("#### 🔔 Notifications & Feedback")
-        st.caption("Configure audio and visual feedback")
+        st.markdown(t("settings.notifications_title", "#### 🔔 Notifications & Feedback"))
+        st.caption(t("settings.notifications_caption", "Configure audio and visual feedback"))
         
         # Sound notification toggle
         completion_sound = st.checkbox(

@@ -2,5 +2,5 @@
 - Be respectful and welcoming  
 - No harassment or hate speech  
 - Assume good intent  
-- Report violations to security@vickyai.io
+- Report violations to the project maintainers
 

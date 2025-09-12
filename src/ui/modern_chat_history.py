@@ -108,14 +108,14 @@ def _render_conversation_item(history_manager: ChatHistoryManager, conv: Dict, c
                 )
                 
                 # Edit controls
-                if st.button("✓ Save", key=f"save_edit_{conv['id']}", help="Save"):
+                if st.button(t("common.save", "✓ Save"), key=f"save_edit_{conv['id']}", help=t("common.save", "Save")):
                     if new_name.strip() and new_name != conv_name:
                         history_manager.rename_conversation(conv["id"], new_name.strip())
                         st.rerun()
                     st.session_state[f"editing_{conv['id']}"] = False
                     st.rerun()
                 
-                if st.button("✗ Cancel", key=f"cancel_edit_{conv['id']}", help="Cancel"):
+                if st.button(t("common.cancel", "✗ Cancel"), key=f"cancel_edit_{conv['id']}", help=t("common.cancel", "Cancel")):
                     st.session_state[f"editing_{conv['id']}"] = False
                     st.rerun()
             else:
@@ -185,14 +185,14 @@ def _handle_conversation_action(history_manager: ChatHistoryManager, conv: Dict,
         else:
             st.session_state[f"confirm_archive_{conv_id}"] = True
             st.warning(f"Archive '{conv['name']}'?")
-            if st.button("Yes", key=f"confirm_archive_yes_{conv_id}"):
+            if st.button(t("common.yes", "Yes"), key=f"confirm_archive_yes_{conv_id}"):
                 st.session_state[f"confirm_archive_{conv_id}"] = False
                 history_manager.archive_conversation(conv_id, True)
                 # If this is the current conversation, start a new one
                 if st.session_state.get("current_conversation_id") == conv_id:
                     _start_new_conversation()
                 st.rerun()
-            if st.button("Cancel", key=f"confirm_archive_no_{conv_id}"):
+            if st.button(t("common.cancel", "Cancel"), key=f"confirm_archive_no_{conv_id}"):
                 st.session_state[f"confirm_archive_{conv_id}"] = False
                 st.rerun()
     
@@ -210,14 +210,14 @@ def _handle_conversation_action(history_manager: ChatHistoryManager, conv: Dict,
         else:
             st.session_state[f"confirm_delete_{conv_id}"] = True
             st.error(f"Delete '{conv['name']}'? This cannot be undone.")
-            if st.button("Delete", key=f"confirm_delete_yes_{conv_id}", type="primary"):
+            if st.button(t("common.delete", "Delete"), key=f"confirm_delete_yes_{conv_id}", type="primary"):
                 st.session_state[f"confirm_delete_{conv_id}"] = False
                 history_manager.delete_conversation(conv_id)
                 # If this is the current conversation, start a new one
                 if st.session_state.get("current_conversation_id") == conv_id:
                     _start_new_conversation()
                 st.rerun()
-            if st.button("Cancel", key=f"confirm_delete_no_{conv_id}"):
+            if st.button(t("common.cancel", "Cancel"), key=f"confirm_delete_no_{conv_id}"):
                 st.session_state[f"confirm_delete_{conv_id}"] = False
                 st.rerun()
 
