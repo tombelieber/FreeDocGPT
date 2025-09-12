@@ -118,7 +118,7 @@ def render_chat_history_panel(history_manager: ChatHistoryManager):
             st.divider()
             st.subheader(t("chat_history.current_conversation", "Current Conversation"))
             
-            current_name = st.session_state.get("conversation_name", "Untitled")
+            current_name = st.session_state.get("conversation_name", t("common.untitled", "Untitled"))
             is_saved = st.session_state.get("conversation_saved", False)
             
             # Show current conversation name with edit option
@@ -296,7 +296,7 @@ def _save_current_conversation(history_manager: ChatHistoryManager):
                 first_message = user_messages[0].get("content", "")
                 conversation_name = first_message[:50] + ("..." if len(first_message) > 50 else "")
             else:
-                conversation_name = "Untitled Conversation"
+                conversation_name = t("common.untitled_conversation", "Untitled Conversation")
     
     conversation_id = st.session_state.get("current_conversation_id")
     

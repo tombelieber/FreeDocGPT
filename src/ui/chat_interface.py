@@ -815,9 +815,9 @@ Be concise but show your reasoning process. Write in a thinking style, like you'
     with button_col2:
         # Thinking mode toggle - moved from sidebar for easier access
         thinking_mode = st.checkbox(
-            "🤔 Thinking Mode", 
+            t("chat.thinking_mode", "🤔 Thinking Mode"), 
             value=st.session_state.get('thinking_mode', False),
-            help="Show AI reasoning process",
+            help=t("chat.thinking_mode_help", "Show AI reasoning process"),
             key="thinking_mode_toggle"
         )
         st.session_state['thinking_mode'] = thinking_mode
@@ -857,19 +857,22 @@ Be concise but show your reasoning process. Write in a thinking style, like you'
                 from .context_ring_widget import _format_tokens
                 
                 st.button(
-                    f"{status_icon} Memory: {percentage}%",
+                    f"{status_icon} " + t("chat.memory_usage", "Memory: {percentage}%", percentage=percentage),
                     disabled=True,
                     key="context_display_button",
                     use_container_width=True,
-                    help=f"Chat memory usage: {_format_tokens(context_usage.total_tokens)} / {_format_tokens(total_limit)} tokens ({percentage}%)\n\nThe AI can remember up to {_format_tokens(total_limit)} tokens of conversation before older messages are summarized."
+                    help=t("chat.memory_tooltip", "Chat memory usage: {used} / {total} tokens ({percentage}%)\n\nThe AI can remember up to {total} tokens of conversation before older messages are summarized.", 
+                           used=_format_tokens(context_usage.total_tokens), 
+                           total=_format_tokens(total_limit), 
+                           percentage=percentage)
                 )
             except Exception as e:
                 logger.debug(f"Failed to render context badge: {e}")
                 # Fallback disabled button
                 st.button(
-                    "🟢 Memory: 0%", 
+                    t("chat.memory_fallback", "🟢 Memory: 0%"), 
                     disabled=True, 
                     key="context_fallback", 
                     use_container_width=True,
-                    help="Chat memory usage: 0 / 128k tokens (0%)\n\nThe AI can remember up to 128k tokens of conversation before older messages are summarized."
+                    help=t("chat.memory_tooltip_fallback", "Chat memory usage: 0 / 128k tokens (0%)\n\nThe AI can remember up to 128k tokens of conversation before older messages are summarized.")
                 )

@@ -1,4 +1,5 @@
 import streamlit as st
+from pathlib import Path
 
 from ..config import get_settings
 from ..core import DatabaseManager, DocumentIndexer
@@ -30,6 +31,21 @@ def render_sidebar(db_manager: DatabaseManager, indexer: DocumentIndexer, search
 def _render_documents_tab(db_manager: DatabaseManager, indexer: DocumentIndexer, settings):
     """Documents tab - file management and indexing."""
     st.markdown(f"### {t('ui.documents', '📄 Documents')}")
+    
+    # Upload section
+    st.markdown(t("sidebar.upload_documents", "**Upload Documents**"))
+    uploaded_files = st.file_uploader(
+        t("sidebar.choose_files", "Choose files"),
+        type=list(ext.lstrip('.') for ext in settings.supported_extensions),
+        accept_multiple_files=True,
+        help=t("sidebar.upload_help", "Upload documents to add them to your collection")
+    )
+    
+    if uploaded_files:
+        if st.button(t("sidebar.upload_button", "📤 Upload Files"), type="primary", use_container_width=True):
+            _handle_file_uploads(uploaded_files, settings)
+    
+    st.divider()
     
     # Folder info
     st.info(t("sidebar.folder", "📂 Folder: `./{folder}/`", folder=settings.documents_folder))
@@ -430,3 +446,40 @@ def _clear_index(db_manager: DatabaseManager, indexer: DocumentIndexer):
         st.success(t("sidebar.index_reset_completed", "✅ Index reset completed"))
     else:
         st.error(t("sidebar.index_reset_failed", "❌ Failed to reset index"))
+
+
+def _handle_file_uploads(uploaded_files, settings):
+    """Handle file uploads and save them to the documents folder."""
+    documents_path = Path(settings.documents_folder)
+    documents_path.mkdir(exist_ok=True)
+    
+    success_count = 0
+    error_count = 0
+    
+    for uploaded_file in uploaded_files:
+        try:
+            # Get the file path
+            file_path = documents_path / uploaded_file.name
+            
+            # Check if file already exists
+            if file_path.exists():
+                st.warning(t("sidebar.file_exists", "File '{filename}' already exists and will be overwritten", filename=uploaded_file.name))
+            
+            # Save the file
+            with open(file_path, "wb") as f:
+                f.write(uploaded_file.getbuffer())
+            
+            success_count += 1
+            st.success(t("sidebar.file_uploaded", "✅ Uploaded: {filename}", filename=uploaded_file.name))
+            
+        except Exception as e:
+            error_count += 1
+            st.error(t("sidebar.upload_error", "❌ Failed to upload {filename}: {error}", filename=uploaded_file.name, error=str(e)))
+    
+    # Show summary
+    if success_count > 0:
+        st.info(t("sidebar.upload_summary", "📋 Upload complete: {success} successful, {error} failed", success=success_count, error=error_count))
+        
+        # Auto-refresh to show new files
+        if error_count == 0:
+            st.rerun()

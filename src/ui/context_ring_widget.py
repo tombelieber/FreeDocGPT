@@ -64,7 +64,7 @@ def render_context_ring(
         <!-- Status Text -->
         <div style="flex-grow: 1; min-width: 0;">
             <div style="font-size: 12px; font-weight: 500; color: #374151;">
-                Memory: {_format_tokens(context_usage.total_tokens)} / {_format_tokens(context_usage.total_tokens + context_usage.free_tokens)} tokens
+{t("context.memory_label", "Memory: {used} / {total} tokens", used=_format_tokens(context_usage.total_tokens), total=_format_tokens(context_usage.total_tokens + context_usage.free_tokens))}
             </div>
             <div style="font-size: 10px; color: #6B7280;">
                 {_get_status_message(context_usage)}
@@ -376,7 +376,7 @@ def render_context_warning_banner(
             <span style="font-size: 16px;">🔄</span>
             <div>
                 <div style="font-size: 13px; font-weight: 600; color: #92400E;">
-                    Memory Optimized
+                    {t("context.memory_optimized", "Memory Optimized")}
                 </div>
                 <div style="font-size: 11px; color: #A16207; margin-top: 2px;">
                     Removed {messages_removed} older messages ({_format_tokens(tokens_saved)} tokens) to maintain performance

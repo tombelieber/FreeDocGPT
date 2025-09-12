@@ -502,6 +502,19 @@ _TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "common.complete": "✅ Complete",
         "common.streaming": "🔄 Streaming...",
         "common.ai_thinking": "🤔 AI is thinking...",
+        "common.untitled": "Untitled",
+        "common.untitled_conversation": "Untitled Conversation",
+        
+        # Chat Interface - Missing Keys
+        "chat.thinking_mode": "🤔 Thinking Mode",
+        "chat.thinking_mode_help": "Show AI reasoning process",
+        "chat.memory_usage": "Memory: {percentage}%",
+        "chat.memory_fallback": "🟢 Memory: 0%",
+        "chat.memory_tooltip": "Chat memory usage: {used} / {total} tokens ({percentage}%)\n\nThe AI can remember up to {total} tokens of conversation before older messages are summarized.",
+        "chat.memory_tooltip_fallback": "Chat memory usage: 0 / 128k tokens (0%)\n\nThe AI can remember up to 128k tokens of conversation before older messages are summarized.",
+        
+        # Context Widget - Missing Keys  
+        "context.memory_label": "Memory: {used} / {total} tokens",
         
         # Settings - More Missing Keys
         "settings.current_configuration_title": "#### 📊 Current Configuration", 
@@ -781,6 +794,21 @@ _TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "context.memory_ok_short": "記憶體正常",
         "context.memory_optimized": "記憶體已最佳化",
         "context.removed_messages": "已移除 {count} 則舊訊息（{tokens} tokens）以維持效能",
+        
+        # Additional Missing Keys
+        "common.untitled": "未命名",
+        "common.untitled_conversation": "未命名對話",
+        
+        # Chat Interface - Missing Keys
+        "chat.thinking_mode": "🤔 思考模式",
+        "chat.thinking_mode_help": "顯示 AI 推理過程",
+        "chat.memory_usage": "記憶體: {percentage}%",
+        "chat.memory_fallback": "🟢 記憶體: 0%",
+        "chat.memory_tooltip": "對話記憶體使用量: {used} / {total} tokens ({percentage}%)\n\nAI 最多能記住 {total} tokens 的對話，之後會自動摘要舊訊息。",
+        "chat.memory_tooltip_fallback": "對話記憶體使用量: 0 / 128k tokens (0%)\n\nAI 最多能記住 128k tokens 的對話，之後會自動摘要舊訊息。",
+        
+        # Context Widget - Missing Keys  
+        "context.memory_label": "記憶體: {used} / {total} tokens",
     },
     "zh-Hans": {
         "app.title": "📚 免费文件GPT",
@@ -949,6 +977,21 @@ _TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "ui.current_configuration": "**当前配置**",
         "ui.index_reset_completed": "✅ 索引重置完成",
         "ui.index_reset_failed": "❌ 索引重置失败",
+        
+        # Additional Missing Keys
+        "common.untitled": "未命名",
+        "common.untitled_conversation": "未命名对话",
+        
+        # Chat Interface - Missing Keys
+        "chat.thinking_mode": "🤔 思考模式",
+        "chat.thinking_mode_help": "显示 AI 推理过程",
+        "chat.memory_usage": "内存: {percentage}%",
+        "chat.memory_fallback": "🟢 内存: 0%",
+        "chat.memory_tooltip": "对话内存使用量: {used} / {total} tokens ({percentage}%)\n\nAI 最多能记住 {total} tokens 的对话，之后会自动摘要旧消息。",
+        "chat.memory_tooltip_fallback": "对话内存使用量: 0 / 128k tokens (0%)\n\nAI 最多能记住 128k tokens 的对话，之后会自动摘要旧消息。",
+        
+        # Context Widget - Missing Keys  
+        "context.memory_label": "内存: {used} / {total} tokens",
     },
     "es": {
         "app.title": "📚 DocumentoGPT",
@@ -1117,6 +1160,21 @@ _TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "ui.current_configuration": "**Configuración actual**",
         "ui.index_reset_completed": "✅ Reinicio de índice completado",
         "ui.index_reset_failed": "❌ Falló el reinicio del índice",
+        
+        # Additional Missing Keys
+        "common.untitled": "Sin título",
+        "common.untitled_conversation": "Conversación sin título",
+        
+        # Chat Interface - Missing Keys
+        "chat.thinking_mode": "🤔 Modo de pensamiento",
+        "chat.thinking_mode_help": "Mostrar proceso de razonamiento de la IA",
+        "chat.memory_usage": "Memoria: {percentage}%",
+        "chat.memory_fallback": "🟢 Memoria: 0%",
+        "chat.memory_tooltip": "Uso de memoria de chat: {used} / {total} tokens ({percentage}%)\n\nLa IA puede recordar hasta {total} tokens de conversación antes de resumir mensajes antiguos.",
+        "chat.memory_tooltip_fallback": "Uso de memoria de chat: 0 / 128k tokens (0%)\n\nLa IA puede recordar hasta 128k tokens de conversación antes de resumir mensajes antiguos.",
+        
+        # Context Widget - Missing Keys  
+        "context.memory_label": "Memoria: {used} / {total} tokens",
     },
     "ja": {
         "app.title": "📚 ドキュメントGPT",
@@ -1276,6 +1334,21 @@ _TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "ui.current_configuration": "**現在の設定**",
         "ui.index_reset_completed": "✅ インデックスのリセットが完了しました",
         "ui.index_reset_failed": "❌ インデックスのリセットに失敗しました",
+        
+        # Additional Missing Keys
+        "common.untitled": "無題",
+        "common.untitled_conversation": "無題の会話",
+        
+        # Chat Interface - Missing Keys
+        "chat.thinking_mode": "🤔 思考モード",
+        "chat.thinking_mode_help": "AIの推論プロセスを表示",
+        "chat.memory_usage": "メモリ: {percentage}%",
+        "chat.memory_fallback": "🟢 メモリ: 0%",
+        "chat.memory_tooltip": "チャットメモリ使用量: {used} / {total} tokens ({percentage}%)\n\nAIは{total}トークンまでの会話を記憶し、それを超えると古いメッセージが要約されます。",
+        "chat.memory_tooltip_fallback": "チャットメモリ使用量: 0 / 128k tokens (0%)\n\nAIは128kトークンまでの会話を記憶し、それを超えると古いメッセージが要約されます。",
+        
+        # Context Widget - Missing Keys  
+        "context.memory_label": "メモリ: {used} / {total} tokens",
     },
 }
 
