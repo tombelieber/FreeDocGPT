@@ -99,6 +99,10 @@ def _render_search_tab(settings, search_service):
     """Search tab - search configuration and controls."""
     st.markdown("### 🔍 Search")
     
+    # Ensure top_k is initialized for consistency with Settings tab
+    if 'top_k' not in st.session_state:
+        st.session_state.top_k = settings.search_result_limit
+    
     # Search mode
     search_mode = st.radio(
         "Search Mode",
@@ -123,42 +127,6 @@ def _render_search_tab(settings, search_service):
         vec_pct = int(alpha*100)
         st.caption(f"📝 Keyword: {kw_pct}% | 🎯 Vector: {vec_pct}%")
     
-    # Results limit
-    top_k = st.slider(
-        "Results Count", 
-        1, 15, 
-        settings.search_result_limit, 
-        help="Number of document chunks"
-    )
-    st.session_state['top_k'] = top_k
-    
-    # Processing settings
-    st.divider()
-    st.markdown("**Processing**")
-    
-    # Initialize session state for processing settings
-    if 'chunk_size' not in st.session_state:
-        st.session_state.chunk_size = 1200
-    if 'overlap_size' not in st.session_state:
-        st.session_state.overlap_size = 200
-    
-    chunk_size = st.slider(
-        "Chunk Size", 
-        500, 2000, 
-        st.session_state.chunk_size, 
-        step=100,
-        help="Characters per chunk"
-    )
-    st.session_state.chunk_size = chunk_size
-    
-    overlap_size = st.slider(
-        "Overlap Size", 
-        0, 400, 
-        st.session_state.overlap_size, 
-        step=50,
-        help="Shared characters between chunks"
-    )
-    st.session_state.overlap_size = overlap_size
     
     # AI features
     st.divider()
@@ -306,53 +274,110 @@ def _render_settings_tab(settings):
     )
     st.session_state['enable_completion_sound'] = completion_sound
     
-    # Quick presets
+    # Document Processing Settings
     st.divider()
-    st.markdown("**Quick Presets**")
+    st.markdown("**Document Processing**")
     
-    col1, col2 = st.columns(2)
+    # Initialize session state for processing settings
+    if 'chunk_size' not in st.session_state:
+        st.session_state.chunk_size = 1200
+    if 'overlap_size' not in st.session_state:
+        st.session_state.overlap_size = 200
+    if 'top_k' not in st.session_state:
+        st.session_state.top_k = 5
     
-    with col1:
-        if st.button("📝 Meeting Notes", use_container_width=True):
-            st.session_state.chunk_size = 800
-            st.session_state.overlap_size = 100
-            st.session_state.top_k = 3
-            st.success("Applied Meeting Notes preset")
-            st.rerun()
-            
-        if st.button("💻 Tech Docs", use_container_width=True):
-            st.session_state.chunk_size = 1800
-            st.session_state.overlap_size = 400
-            st.session_state.top_k = 5
-            st.success("Applied Tech Docs preset")
-            st.rerun()
+    # Chunk Size with comprehensive tooltip
+    chunk_size = st.slider(
+        "Chunk Size (characters)", 
+        500, 3000, 
+        st.session_state.chunk_size, 
+        step=100,
+        help="""**Chunk Size** determines how much text is processed together as one unit.
+
+**Smaller chunks (500-1000):**
+• Better for Q&A with specific facts
+• More precise but may lose context
+• Good for: FAQs, definitions, short articles
+
+**Medium chunks (1000-2000):** 
+• Balanced approach for most documents
+• Preserves moderate context while staying focused
+• Good for: Technical docs, reports, general content
+
+**Larger chunks (2000-3000):**
+• Better for complex topics needing context
+• May be less precise but preserves relationships
+• Good for: Academic papers, detailed explanations, narratives"""
+    )
+    st.session_state.chunk_size = chunk_size
     
-    with col2:
-        if st.button("📋 PRD/Specs", use_container_width=True):
-            st.session_state.chunk_size = 1500
-            st.session_state.overlap_size = 300
-            st.session_state.top_k = 7
-            st.success("Applied PRD/Specs preset")
-            st.rerun()
-            
-        if st.button("📚 Wiki/KB", use_container_width=True):
-            st.session_state.chunk_size = 1200
-            st.session_state.overlap_size = 200
-            st.session_state.top_k = 5
-            st.success("Applied Wiki/KB preset")
-            st.rerun()
+    # Overlap Size with comprehensive tooltip  
+    overlap_size = st.slider(
+        "Overlap Size (characters)", 
+        0, 500, 
+        st.session_state.overlap_size, 
+        step=25,
+        help="""**Overlap Size** controls how much text is shared between adjacent chunks.
+
+**No overlap (0):**
+• Fastest processing, no duplication
+• Risk of breaking related concepts across chunks
+• Use when: Documents have clear section breaks
+
+**Small overlap (50-150):**
+• Minimal context preservation with good efficiency  
+• Helps maintain continuity between chunks
+• Use when: Well-structured documents
+
+**Medium overlap (150-300):**
+• Good balance of context and efficiency
+• Recommended for most document types
+• Helps AI understand relationships across boundaries
+
+**Large overlap (300-500):**
+• Maximum context preservation
+• More processing time and storage
+• Use when: Complex documents with interconnected concepts"""
+    )
+    st.session_state.overlap_size = overlap_size
     
-    # Current config
+    # Results Count with comprehensive tooltip
+    top_k = st.slider(
+        "Results Count", 
+        1, 20, 
+        st.session_state.top_k,
+        help="""**Results Count** sets how many relevant document chunks are retrieved for each query.
+
+**Few results (1-3):**
+• Faster responses, lower token usage
+• More focused but may miss relevant information  
+• Good for: Simple questions, specific fact lookup
+
+**Medium results (4-8):**
+• Balanced approach for most queries
+• Good coverage without overwhelming the AI
+• Recommended for: General Q&A, document exploration
+
+**Many results (9-20):**
+• Comprehensive information gathering
+• Slower responses, higher token usage
+• Good for: Complex questions, research tasks, summarization
+
+Note: More results = better coverage but higher costs and slower responses"""
+    )
+    st.session_state.top_k = top_k
+    
+    # Current Configuration Display
     st.divider()
-    st.markdown("**Current Config**")
+    st.markdown("**Current Configuration**")
     config_cols = st.columns(3)
     
     with config_cols[0]:
-        st.metric("Chunk", f"{st.session_state.get('chunk_size', 1200)}")
+        st.metric("Chunk Size", f"{chunk_size:,} chars", help="Characters per document chunk")
     with config_cols[1]:
-        st.metric("Overlap", f"{st.session_state.get('overlap_size', 200)}")
+        st.metric("Overlap", f"{overlap_size} chars", help="Shared characters between chunks")  
     with config_cols[2]:
-        st.metric("Results", f"{st.session_state.get('top_k', 5)}")
+        st.metric("Results", f"{top_k}", help="Chunks retrieved per query")
 
 
 def _clear_index(db_manager: DatabaseManager, indexer: DocumentIndexer):

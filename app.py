@@ -130,17 +130,14 @@ def main():
     # Initialize services
     db_manager, indexer, search_service, chat_service, history_manager = initialize_services()
     
-    # Render sidebar components
-    render_sidebar(db_manager, indexer, search_service)
-    
-    # Render modern chat history panel in sidebar if enabled
+    # Render modern chat history panel at top of sidebar if enabled
     if history_manager:
-        render_modern_chat_history(history_manager)
+        with st.sidebar:
+            render_modern_chat_history(history_manager)
+            st.divider()
     
-    # Render settings in sidebar
-    with st.sidebar:
-        st.divider()
-        render_settings_panel(search_service)
+    # Render sidebar with integrated navigation
+    render_sidebar(db_manager, indexer, search_service)
     
     # Render main chat interface
     render_chat_interface(search_service, chat_service, history_manager)
