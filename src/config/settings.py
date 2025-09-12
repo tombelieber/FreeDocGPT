@@ -27,7 +27,7 @@ class Settings:
     """Application configuration settings."""
     
     # Database settings
-    db_dir: str = field(default_factory=lambda: _getenv("DB_DIR", ".lancedb"))
+    db_dir: str = field(default_factory=lambda: _getenv("DB_DIR", "data/databases/.lancedb"))
     table_name: str = field(default_factory=lambda: _getenv("TABLE_NAME", "docs"))
     
     # Model settings
@@ -36,7 +36,7 @@ class Settings:
     vision_model: str = field(default_factory=lambda: _getenv("VISION_MODEL", "llava:7b"))
     
     # Document settings
-    documents_folder: str = field(default_factory=lambda: _getenv("DOCUMENTS_FOLDER", "documents"))
+    documents_folder: str = field(default_factory=lambda: _getenv("DOCUMENTS_FOLDER", "data/documents"))
     
     # Supported file extensions
     supported_extensions: Set[str] = field(default_factory=lambda: {

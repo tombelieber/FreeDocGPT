@@ -8,7 +8,7 @@
 
 #### Integration Test Command:
 ```bash
-source .venv/bin/activate && python test_indexing.py
+source .venv/bin/activate && python tests/test_indexing.py
 ```
 
 #### What This Test Verifies:
@@ -31,19 +31,19 @@ source .venv/bin/activate && python test_indexing.py
 
 If you modify **hybrid search** functionality:
 ```bash
-python test_hybrid_search.py
+python tests/test_hybrid_search.py
 ```
 
 If you modify **UI components**:
 ```bash
-streamlit run src/app.py --server.headless true &
+streamlit run app/main.py --server.headless true &
 sleep 5
 curl http://localhost:8501 || echo "UI test failed"
 pkill -f streamlit
 ```
 
 #### Pre-Commit Checklist:
-- [ ] Run `python test_indexing.py` - must pass
+- [ ] Run `python tests/test_indexing.py` - must pass
 - [ ] Run type checking if available: `mypy src/` (if configured)
 - [ ] Run linting if available: `flake8 src/` or `ruff check src/`
 - [ ] Verify no sensitive information in code (API keys, passwords)
@@ -58,7 +58,7 @@ source .venv/bin/activate  # Activate virtual environment
 
 ### Running the Application:
 ```bash
-streamlit run src/app.py
+streamlit run app/main.py
 ```
 
 ### Running Ollama (for embeddings):
@@ -68,14 +68,20 @@ ollama pull nomic-embed-text  # Pull embedding model if not present
 ```
 
 ## Project Structure:
+- `app/`: Main application entry points
 - `src/core/`: Core functionality (indexing, search, database)
 - `src/ui/`: Streamlit UI components
 - `src/config/`: Configuration and settings
-- `documents/`: Default document storage location
-- `data/`: Database and vector storage
+- `tests/`: All test files and testing utilities
+- `docs/`: Project documentation
+- `config/`: Configuration files and templates
+- `data/documents/`: Default document storage location
+- `data/databases/`: Database and vector storage
+- `scripts/`: Utility scripts
+- `assets/`: Static assets (images, icons)
 
 ## Important Notes:
 - Always run integration tests after modifying core functionality
-- The indexing test creates test documents in the documents folder
+- The indexing test creates test documents in the data/documents folder
 - Tests should complete within 30 seconds
 - If Ollama is not running, some tests may skip embedding generation but should still verify file scanning
