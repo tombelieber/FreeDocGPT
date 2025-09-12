@@ -82,6 +82,23 @@ Tip: If you see unfamiliar terms, ignore them — the default settings already g
 
 <a id="quick-start-en"></a>
 
+### Option 1: One-Click Setup (Recommended)
+
+```bash
+./scripts/run.sh
+```
+
+This script will automatically:
+
+- Install and start Ollama
+- Pull required models
+- Set up Python environment
+- Install dependencies
+- Create document folder
+- Start the application at <http://localhost:8501>
+
+### Option 2: Manual Setup
+
 ### 1) Install prerequisites (macOS)
 
 ```bash
@@ -109,7 +126,7 @@ mkdir -p documents
 ### 4) Run the app
 
 ```bash
-streamlit run app.py
+streamlit run app/main.py
 # Open http://localhost:8501
 ```
 
