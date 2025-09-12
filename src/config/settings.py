@@ -123,6 +123,13 @@ class Settings:
     # UI notification settings
     enable_completion_sound: bool = field(default_factory=lambda: _getenv("ENABLE_COMPLETION_SOUND", "true").lower() == "true")
     
+    # Context management settings
+    max_context_tokens: int = field(default_factory=lambda: int(_getenv("MAX_CONTEXT_TOKENS", "128000")))
+    context_warning_threshold: float = field(default_factory=lambda: float(_getenv("CONTEXT_WARNING_THRESHOLD", "0.75")))
+    context_critical_threshold: float = field(default_factory=lambda: float(_getenv("CONTEXT_CRITICAL_THRESHOLD", "0.85")))
+    sliding_window_size: int = field(default_factory=lambda: int(_getenv("SLIDING_WINDOW_SIZE", "4000")))
+    enable_context_indicator: bool = field(default_factory=lambda: _getenv("ENABLE_CONTEXT_INDICATOR", "true").lower() == "true")
+    
     def get_documents_path(self) -> Path:
         """Get the documents folder path, creating it if necessary."""
         path = Path(self.documents_folder)

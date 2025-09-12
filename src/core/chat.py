@@ -1,55 +1,82 @@
 import logging
 import time
-from typing import Dict, Generator, Optional, Tuple, List
+from typing import Dict, Generator, Optional, Tuple, List, Any
 
 import ollama
 
 from ..config import get_settings
+from .context_manager import ContextManager, ContextUsage
 
 logger = logging.getLogger(__name__)
 
 
 class ChatService:
-    """Handles chat interactions with LLM."""
+    """Handles chat interactions with LLM with context management."""
     
     def __init__(self, model: Optional[str] = None):
         settings = get_settings()
         self.model = model or settings.gen_model
         self.settings = settings
+        self.context_manager = ContextManager(self.model)
     
     def build_messages_with_history(
         self, 
         system_prompt: str,
         user_prompt: str,
-        conversation_history: Optional[List[Dict]] = None
-    ) -> List[Dict]:
-        """Build messages list including conversation history for context.
+        conversation_history: Optional[List[Dict]] = None,
+        search_results_tokens: int = 0,
+        enable_sliding_window: bool = True
+    ) -> Tuple[List[Dict], ContextUsage, Dict[str, Any]]:
+        """Build messages list including conversation history with context management.
         
         Args:
             system_prompt: System message with context
             user_prompt: Current user question
             conversation_history: Previous conversation turns
+            search_results_tokens: Tokens used by search results in context
+            enable_sliding_window: Whether to apply sliding window if needed
             
         Returns:
-            Messages list formatted for LLM
+            Tuple of (messages_list, context_usage, optimization_info)
         """
+        # Build initial message list
         messages = [{"role": "system", "content": system_prompt}]
         
-        # Add conversation history if provided
-        if conversation_history and self.settings.conversation_context_turns > 0:
-            # Get last N turns (each turn is a user-assistant pair)
-            max_messages = self.settings.conversation_context_turns * 2
-            recent_history = conversation_history[-max_messages:] if len(conversation_history) > max_messages else conversation_history
-            
-            # Add history messages
-            for msg in recent_history:
+        # Add conversation history if provided - use ALL history initially
+        if conversation_history:
+            for msg in conversation_history:
                 if msg["role"] in ["user", "assistant"]:
                     messages.append({"role": msg["role"], "content": msg["content"]})
         
         # Add current user prompt
         messages.append({"role": "user", "content": user_prompt})
         
-        return messages
+        # Apply context optimization if enabled
+        if enable_sliding_window:
+            optimized_messages, context_usage, optimization_info = (
+                self.context_manager.optimize_messages_for_context(
+                    messages, search_results_tokens
+                )
+            )
+            return optimized_messages, context_usage, optimization_info
+        else:
+            # Just analyze usage without optimization
+            context_usage = self.context_manager.analyze_context_usage(
+                messages, search_results_tokens
+            )
+            return messages, context_usage, {'sliding_applied': False}
+    
+    def get_context_analysis(
+        self,
+        messages: List[Dict],
+        search_results_tokens: int = 0
+    ) -> ContextUsage:
+        """Get context usage analysis for UI display."""
+        return self.context_manager.analyze_context_usage(messages, search_results_tokens)
+    
+    def get_context_recommendations(self, context_usage: ContextUsage) -> List[str]:
+        """Get context optimization recommendations."""
+        return self.context_manager.get_context_recommendations(context_usage)
     
     def stream_chat(self, messages: list) -> Generator[str, None, Dict]:
         """Stream chat responses with statistics."""

@@ -5,6 +5,7 @@ from .search import SearchService
 from .chat import ChatService
 from .vision_chat import VisionChatService
 from .chat_history import ChatHistoryManager
+from .context_manager import ContextManager, ContextUsage
 from .hybrid_search import HybridSearch, TantivyIndex
 from .deduplication import DocumentHasher, ChunkDeduplicator, IncrementalIndexer
 
@@ -16,6 +17,8 @@ __all__ = [
     "ChatService",
     "VisionChatService",
     "ChatHistoryManager",
+    "ContextManager",
+    "ContextUsage",
     "HybridSearch",
     "TantivyIndex",
     "DocumentHasher",

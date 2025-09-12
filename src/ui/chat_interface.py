@@ -14,6 +14,7 @@ from ..core.meta_handler import MetaQueryHandler
 from ..document_processing import VisionDocumentReader
 from .i18n import t
 from .modern_chat_history import auto_save_current_conversation, get_current_conversation_title
+from .context_ring_widget import render_context_ring, render_context_warning_banner, render_inline_context_badge
 
 logger = logging.getLogger(__name__)
 
@@ -288,12 +289,22 @@ def render_chat_interface(search_service: SearchService, chat_service: ChatServi
                 # Get conversation history (excluding the current message we just added)
                 conversation_history = st.session_state.messages[:-1] if len(st.session_state.messages) > 1 else []
                 
-                # Build messages with history using ChatService
-                messages = chat_service.build_messages_with_history(
+                # Estimate search results token count (rough approximation)
+                search_results_text = system_prompt + citations if search_results is not None else system_prompt
+                search_results_tokens = len(search_results_text) // 4  # 4 chars ≈ 1 token
+                
+                # Build messages with context management
+                messages, context_usage, optimization_info = chat_service.build_messages_with_history(
                     system_prompt=system_prompt,
                     user_prompt=user_prompt,
-                    conversation_history=conversation_history
+                    conversation_history=conversation_history,
+                    search_results_tokens=search_results_tokens,
+                    enable_sliding_window=True
                 )
+                
+                # Show context optimization warning if sliding window was applied
+                if optimization_info.get('sliding_applied', False):
+                    render_context_warning_banner(context_usage, optimization_info)
                 
                 # Check if thinking mode is enabled
                 thinking_enabled = st.session_state.get('thinking_mode', False)
@@ -769,18 +780,9 @@ Be concise but show your reasoning process. Write in a thinking style, like you'
                             # Non-fatal error - don't disrupt the chat
                             logger.debug(f"Failed to play completion sound: {e}")
 
-                    # Trim chat history to configured limit (keep last N turns)
-                    try:
-                        history_limit = settings.chat_history_limit if hasattr(settings, "chat_history_limit") else 20
-                        # messages are user/assistant pairs; keep last 2*limit entries
-                        max_msgs = max(2 * int(history_limit), 2)
-                        if len(st.session_state.messages) > max_msgs:
-                            st.session_state.messages = st.session_state.messages[-max_msgs:]
-                        if len(st.session_state.response_stats) > history_limit:
-                            st.session_state.response_stats = st.session_state.response_stats[-history_limit:]
-                    except Exception:
-                        # Non-fatal; ignore trimming errors
-                        pass
+                    # Note: Chat history trimming is now handled by context management
+                    # The context manager applies sliding window as needed to stay within limits
+                    # Full conversation history is maintained in session state
                     
                 except Exception as e:
                     st.error(t("chat.error_generating", "Error generating response: {err}", err=e))
@@ -801,9 +803,63 @@ Be concise but show your reasoning process. Write in a thinking style, like you'
     
     # Footer
     st.divider()
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        if st.button(t("buttons.clear_chat", "🔄 Clear Chat")):
+    # Create equal-height columns for buttons
+    button_col1, button_col2, col3 = st.columns([2, 2, 1])
+    
+    with button_col1:
+        if st.button(t("buttons.clear_chat", "🔄 Clear Chat"), use_container_width=True):
             st.session_state.messages = []
             st.session_state.response_stats = []
             st.rerun()
+    
+    with button_col2:
+        # Context usage as a disabled button to match styling exactly
+        if settings.enable_context_indicator:
+            try:
+                # Get current context analysis
+                current_messages = st.session_state.get("messages", [])
+                if current_messages:
+                    context_usage = chat_service.get_context_analysis(current_messages)
+                else:
+                    # Show minimal usage for empty chat
+                    from ..core.context_manager import ContextUsage
+                    context_usage = ContextUsage(
+                        system_tokens=0, history_tokens=0, current_tokens=0,
+                        documents_tokens=0, total_tokens=0, free_tokens=128000,
+                        usage_percentage=0.0, warning_level='green'
+                    )
+                
+                # Use actual Streamlit button (disabled) to match styling perfectly
+                percentage = min(100, int(context_usage.usage_percentage * 100))
+                
+                # Status indicator
+                if context_usage.warning_level == 'red':
+                    status_icon = "🔴"
+                elif context_usage.warning_level == 'yellow':
+                    status_icon = "🟡"  
+                else:
+                    status_icon = "🟢"
+                
+                # Create disabled button that looks identical to Clear Chat
+                total_limit = context_usage.total_tokens + context_usage.free_tokens
+                
+                # Import the formatting function
+                from .context_ring_widget import _format_tokens
+                
+                st.button(
+                    f"{status_icon} Memory: {percentage}%",
+                    disabled=True,
+                    key="context_display_button",
+                    use_container_width=True,
+                    help=f"Chat memory usage: {_format_tokens(context_usage.total_tokens)} / {_format_tokens(total_limit)} tokens ({percentage}%)\n\nThe AI can remember up to {_format_tokens(total_limit)} tokens of conversation before older messages are summarized."
+                )
+            except Exception as e:
+                logger.debug(f"Failed to render context badge: {e}")
+                # Fallback disabled button
+                st.button(
+                    "🟢 Memory: 0%", 
+                    disabled=True, 
+                    key="context_fallback", 
+                    use_container_width=True,
+                    help="Chat memory usage: 0 / 128k tokens (0%)\n\nThe AI can remember up to 128k tokens of conversation before older messages are summarized."
+                )
