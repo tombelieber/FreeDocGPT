@@ -79,3 +79,4 @@ Icon
 
 # Documents directory
 documents/
+.app_state
