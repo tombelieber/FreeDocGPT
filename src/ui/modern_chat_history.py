@@ -15,31 +15,30 @@ def render_modern_chat_history(history_manager: ChatHistoryManager):
     if not settings.enable_chat_history:
         return
     
-    with st.sidebar:
-        # Header with new chat button
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            st.header(t("chat_history.header", "💬 Chats"))
-        with col2:
-            if st.button("✏️", help=t("chat_history.new_chat", "New chat"), key="new_chat_btn"):
-                _start_new_conversation()
-        
-        # Search bar (modern style)
-        search_query = st.text_input(
-            "",
-            placeholder=t("chat_history.search_placeholder", "Search chats..."),
-            key="chat_search",
-            label_visibility="collapsed"
-        )
-        
-        # Filter tabs
-        tab1, tab2 = st.tabs([t("chat_history.recent", "Recent"), t("chat_history.pinned", "Pinned")])
-        
-        with tab1:
-            _render_conversation_list(history_manager, search_query, show_pinned_only=False)
-        
-        with tab2:
-            _render_conversation_list(history_manager, search_query, show_pinned_only=True)
+    # Header with new chat button
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        st.header(t("chat_history.header", "💬 Chats"))
+    with col2:
+        if st.button("✏️", help=t("chat_history.new_chat", "New chat"), key="new_chat_btn"):
+            _start_new_conversation()
+    
+    # Search bar (modern style)
+    search_query = st.text_input(
+        "",
+        placeholder=t("chat_history.search_placeholder", "Search chats..."),
+        key="chat_search",
+        label_visibility="collapsed"
+    )
+    
+    # Filter tabs
+    tab1, tab2 = st.tabs([t("chat_history.recent", "Recent"), t("chat_history.pinned", "Pinned")])
+    
+    with tab1:
+        _render_conversation_list(history_manager, search_query, show_pinned_only=False)
+    
+    with tab2:
+        _render_conversation_list(history_manager, search_query, show_pinned_only=True)
 
 
 def _render_conversation_list(history_manager: ChatHistoryManager, search_query: str = "", show_pinned_only: bool = False):
