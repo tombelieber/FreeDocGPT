@@ -12,7 +12,7 @@ def render_sidebar(db_manager: DatabaseManager, indexer: DocumentIndexer, search
     
     with st.sidebar:
         # Tabbed navigation for better organization
-        tab1, tab2, tab3, tab4 = st.tabs(["📄 Documents", "🔍 Search", "🤖 Models", "⚙️ Settings"])
+        tab1, tab2, tab3, tab4 = st.tabs([t("ui.documents", "📄 Documents"), t("ui.search", "🔍 Search"), t("ui.models", "🤖 Models"), t("ui.settings", "⚙️ Settings")])
         
         with tab1:  # Documents
             _render_documents_tab(db_manager, indexer, settings)
@@ -29,26 +29,26 @@ def render_sidebar(db_manager: DatabaseManager, indexer: DocumentIndexer, search
 
 def _render_documents_tab(db_manager: DatabaseManager, indexer: DocumentIndexer, settings):
     """Documents tab - file management and indexing."""
-    st.markdown("### 📄 Documents")
+    st.markdown(f"### {t('ui.documents', '📄 Documents')}")
     
     # Folder info
-    st.info(f"📂 Folder: `./{settings.documents_folder}/`")
+    st.info(t("sidebar.folder", "📂 Folder: `./{folder}/`", folder=settings.documents_folder))
     
     # Scan for documents
     available_files = indexer.scan_documents_folder()
     
     if available_files:
-        st.success(f"Found {len(available_files)} documents")
+        st.success(t("sidebar.found_documents", "Found {count} documents", count=len(available_files)))
         
         # AI Auto-detect
         auto_detect = st.checkbox(
-            "🤖 AI Auto-detect", 
+            t("sidebar.ai_auto_detect", "🤖 AI Auto-detect"), 
             value=True,
-            help="Auto-detect document types and languages"
+            help=t("sidebar.auto_detect_help", "Auto-detect document types and languages")
         )
         
         # Index button
-        if st.button("🔄 Index Documents", type="primary", use_container_width=True):
+        if st.button(t("sidebar.index_documents", "🔄 Index Documents"), type="primary", use_container_width=True):
             chunk_size = st.session_state.get('chunk_size', 1200)
             overlap_size = st.session_state.get('overlap_size', 200)
             indexer.index_documents(
@@ -60,14 +60,14 @@ def _render_documents_tab(db_manager: DatabaseManager, indexer: DocumentIndexer,
             st.rerun()
         
         # Document list
-        with st.expander("View documents", expanded=False):
+        with st.expander(t("sidebar.view_documents", "View documents"), expanded=False):
             for file in available_files[:15]:
                 st.caption(f"📄 {file.name}")
             if len(available_files) > 15:
-                st.caption(f"... and {len(available_files) - 15} more")
+                st.caption(t("sidebar.and_more", "... and {count} more", count=len(available_files) - 15))
     else:
-        st.warning("No documents found")
-        st.markdown("**Supported:** PDF, Word, Markdown, TXT, HTML, CSV, Excel, JSON")
+        st.warning(t("sidebar.no_documents_found", "No documents found"))
+        st.markdown(t("sidebar.supported_formats_basic", "**Supported:** PDF, Word, Markdown, TXT, HTML, CSV, Excel, JSON"))
     
     # Index status
     st.divider()
@@ -77,19 +77,19 @@ def _render_documents_tab(db_manager: DatabaseManager, indexer: DocumentIndexer,
         
         col1, col2 = st.columns(2)
         with col1:
-            st.metric("Indexed", len(indexed_docs))
+            st.metric(t("sidebar.indexed_metric", "Indexed"), len(indexed_docs))
         with col2:
-            st.metric("Chunks", total_chunks)
+            st.metric(t("sidebar.chunks_metric", "Chunks"), total_chunks)
             
-        if st.button("🧹 Reset Index", use_container_width=True):
+        if st.button(t("sidebar.reset_index_button", "🧹 Reset Index"), use_container_width=True):
             _show_reset_confirmation_dialog(db_manager, indexer)
             
         # Detailed view
-        with st.expander("View indexed", expanded=True):
+        with st.expander(t("sidebar.view_indexed", "View indexed"), expanded=True):
             st.dataframe(indexed_docs, use_container_width=True, hide_index=True)
     else:
-        st.info("No documents indexed")
-        if st.button("🧹 Reset Index", use_container_width=True):
+        st.info(t("sidebar.no_documents_indexed", "No documents indexed"))
+        if st.button(t("sidebar.reset_index_button", "🧹 Reset Index"), use_container_width=True):
             _show_reset_confirmation_dialog(db_manager, indexer)
 
 

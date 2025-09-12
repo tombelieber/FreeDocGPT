@@ -44,33 +44,33 @@ def _render_quick_setup_tab():
     
     # Sub-group 1: Document Type Presets
     with st.container():
-        st.markdown("#### 🎯 Document Type Presets")
-        st.caption("One-click optimization for common document types")
+        st.markdown(f"#### {t('settings.doc_type_presets', '🎯 Document Type Presets')}")
+        st.caption(t("settings.one_click_optimization", "One-click optimization for common document types"))
         
         col1, col2 = st.columns(2)
         
         with col1:
             meeting_preset = st.button(
-                "📝 Meeting Notes", 
+                t("settings.meeting_notes", "📝 Meeting Notes"), 
                 use_container_width=True,
-                help="Optimized for meeting notes and conversations"
+                help=t("settings.meeting_notes_help", "Optimized for meeting notes and conversations")
             )
             prd_preset = st.button(
-                "📋 PRD/Specs", 
+                t("settings.prd_specs", "📋 PRD/Specs"), 
                 use_container_width=True,
-                help="Best for product requirements and specifications"
+                help=t("settings.prd_specs_help", "Best for product requirements and specifications")
             )
         
         with col2:
             tech_preset = st.button(
-                "💻 Tech Docs", 
+                t("settings.tech_docs", "💻 Tech Docs"), 
                 use_container_width=True,
-                help="Ideal for code documentation and technical guides"
+                help=t("settings.tech_docs_help", "Ideal for code documentation and technical guides")
             )
             wiki_preset = st.button(
-                "📚 Wiki/KB", 
+                t("settings.wiki_kb", "📚 Wiki/KB"), 
                 use_container_width=True,
-                help="Perfect for knowledge base articles"
+                help=t("settings.wiki_kb_help", "Perfect for knowledge base articles")
             )
         
         # Apply presets
@@ -78,25 +78,25 @@ def _render_quick_setup_tab():
             st.session_state.chunk_size = 800
             st.session_state.overlap_size = 100
             st.session_state.top_k = 3
-            st.success("📝 Applied Meeting Notes preset")
+            st.success(t("settings.applied_meeting_notes", "📝 Applied Meeting Notes preset"))
             st.rerun()
         elif prd_preset:
             st.session_state.chunk_size = 1500
             st.session_state.overlap_size = 300
             st.session_state.top_k = 7
-            st.success("📋 Applied PRD/Specs preset")
+            st.success(t("settings.applied_prd_specs", "📋 Applied PRD/Specs preset"))
             st.rerun()
         elif tech_preset:
             st.session_state.chunk_size = 1800
             st.session_state.overlap_size = 400
             st.session_state.top_k = 5
-            st.success("💻 Applied Tech Docs preset")
+            st.success(t("settings.applied_tech_docs", "💻 Applied Tech Docs preset"))
             st.rerun()
         elif wiki_preset:
             st.session_state.chunk_size = 1200
             st.session_state.overlap_size = 200
             st.session_state.top_k = 5
-            st.success("📚 Applied Wiki/KB preset")
+            st.success(t("settings.applied_wiki_kb", "📚 Applied Wiki/KB preset"))
             st.rerun()
     
     st.divider()

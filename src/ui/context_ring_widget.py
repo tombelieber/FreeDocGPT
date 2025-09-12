@@ -290,21 +290,21 @@ def render_inline_context_badge(
 def _get_status_message(context_usage: ContextUsage) -> str:
     """Get status message based on context usage."""
     if context_usage.warning_level == 'red':
-        return "⚠️ Memory full - older messages may be summarized"
+        return t("context.memory_full", "⚠️ Memory full - older messages may be summarized")
     elif context_usage.warning_level == 'yellow':
-        return "⚡ Memory getting full - monitor usage"
+        return t("context.memory_high", "⚡ Memory getting full - monitor usage")
     else:
-        return "✅ Memory healthy - plenty of room for conversation"
+        return t("context.memory_ok", "✅ Memory healthy - plenty of room for conversation")
 
 
 def _get_mini_status(context_usage: ContextUsage) -> str:
     """Get mini status for compact display."""
     if context_usage.warning_level == 'red':
-        return "Memory Full"
+        return t("context.memory_full_short", "Memory Full")
     elif context_usage.warning_level == 'yellow':
-        return "Memory High"
+        return t("context.memory_high_short", "Memory High")
     else:
-        return "Memory OK"
+        return t("context.memory_ok_short", "Memory OK")
 
 
 def _get_detailed_recommendations(context_usage: ContextUsage) -> str:
