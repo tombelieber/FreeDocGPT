@@ -69,63 +69,112 @@ class SearchService:
         self.clusterer = None  # Will be loaded from indexed data when needed
 
     def _load_system_prompt(self) -> str:
-        """Load system prompt based on current UI language, falling back to default."""
-        default_prompt = (
+        """Load system prompt based on current UI language, with explicit language directive.
+
+        The loader prefers a language-specific template if available, then falls back to the
+        configured `SYSTEM_PROMPT_PATH`, and finally a minimal default. Regardless of source,
+        it appends a locale-specific "respond in X language" directive to ensure the model's
+        responses align with the selected UI language.
+        """
+        base_default = (
             "You are a helpful assistant. Answer questions based on the provided context. "
             "If the context doesn't contain relevant information, say so."
         )
+        # Default to English until we resolve actual locale
+        current_locale = "en"
+
+        # Locale-specific response directives to enforce output language
+        language_directives = {
+            "en": "Always respond in English.",
+            "es": "Responde siempre en español.",
+            "ja": "常に日本語で回答してください。",
+            "zh-Hans": "请始终使用简体中文回答。",
+            "zh-Hant": "請始終使用繁體中文回答。",
+        }
+
+        def add_language_directive(text: str) -> str:
+            directive = language_directives.get(current_locale)
+            if not directive:
+                return text
+            # Avoid duplicating if the directive line already exists
+            if directive in text:
+                return text
+            return f"{text}\n\n{directive}"
+
         try:
             from ..config import get_settings
             from ..ui.i18n import get_locale
-            
+
             settings = get_settings()
             current_locale = get_locale()
-            
+
             # Map locales to prompt file names
             prompt_files = {
                 "en": "rag_prompt_en.md",
-                "zh-Hant": "rag_prompt_zh_hant.md", 
+                "zh-Hant": "rag_prompt_zh_hant.md",
                 "zh-Hans": "rag_prompt_zh_hans.md",
                 "es": "rag_prompt_es.md",
-                "ja": "rag_prompt_ja.md"
+                "ja": "rag_prompt_ja.md",
             }
-            
+
             # Get the appropriate prompt file for current language
             prompt_filename = prompt_files.get(current_locale, "rag_prompt_en.md")
-            
+
             # Try language-specific prompt first
             repo_root = Path(__file__).resolve().parents[2]
             candidate = repo_root / prompt_filename
-            
+
+            # Helper to apply optional user overlay on top of base prompt
+            def with_overlay(base_text: str) -> str:
+                try:
+                    overlay_dir = repo_root / ".app_state" / "prompt_overrides"
+                    overlay_path = overlay_dir / f"{current_locale}.md"
+                    if overlay_path.exists() and overlay_path.is_file():
+                        overlay = overlay_path.read_text(encoding="utf-8").strip()
+                        if overlay:
+                            logger.info(
+                                f"Applied user overlay for locale {current_locale} from {overlay_path}"
+                            )
+                            return f"{base_text}\n\n{overlay}"
+                except Exception as oe:
+                    logger.warning(f"Failed to apply user prompt overlay: {oe}")
+                return base_text
+
             if candidate.exists() and candidate.is_file():
                 content = candidate.read_text(encoding="utf-8").strip()
                 if content:
-                    logger.info(f"Loaded language-specific system prompt from {candidate} for locale {current_locale}")
-                    return content
+                    logger.info(
+                        f"Loaded language-specific system prompt from {candidate} for locale {current_locale}"
+                    )
+                    return add_language_directive(with_overlay(content))
                 else:
                     logger.warning(f"Language-specific prompt file {candidate} is empty")
             else:
                 logger.info(f"Language-specific prompt file not found at {candidate}")
-            
+
             # Fallback to configured path (backward compatibility)
             path_str = settings.system_prompt_path
             fallback_candidate = Path(path_str)
             if not fallback_candidate.is_absolute():
                 fallback_candidate = repo_root / fallback_candidate
-                
+
             if fallback_candidate.exists() and fallback_candidate.is_file():
                 content = fallback_candidate.read_text(encoding="utf-8").strip()
                 if content:
                     logger.info(f"Loaded fallback system prompt from {fallback_candidate}")
-                    return content
+                    return add_language_directive(with_overlay(content))
                 else:
-                    logger.warning(f"Fallback prompt file {fallback_candidate} is empty; using default prompt")
+                    logger.warning(
+                        f"Fallback prompt file {fallback_candidate} is empty; using minimal default"
+                    )
             else:
-                logger.info(f"Fallback prompt file not found at {fallback_candidate}; using default prompt")
-                
+                logger.info(
+                    f"Fallback prompt file not found at {fallback_candidate}; using minimal default"
+                )
+
         except Exception as e:
-            logger.warning(f"Failed to load system prompt: {e}; using default prompt")
-        return default_prompt
+            logger.warning(f"Failed to load system prompt: {e}; using minimal default")
+        return add_language_directive(base_default)
 
     def reload_system_prompt(self) -> None:
         """Reload system prompt from disk and update internal cache."""

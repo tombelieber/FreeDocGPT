@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Local Git hook to enforce i18n on UI text.
+# Enable with: git config core.hooksPath .githooks
+
+set -euo pipefail
+
+# Only run if Python is available
+if ! command -v python >/dev/null 2>&1; then
+  echo "[i18n] Python not found; skipping i18n check" >&2
+  exit 0
+fi
+
+# Run enforcement using baseline so only new violations fail
+I18N_BASELINE=".i18n/i18n_ui_baseline.txt"
+if [ -f "$I18N_BASELINE" ]; then
+  python scripts/check_ui_i18n.py --baseline "$I18N_BASELINE" --enforce || {
+    echo "\n[i18n] Found new hardcoded UI strings. Wrap user-visible text with t(…) and add translations in src/ui/i18n.py." >&2
+    echo "[i18n] To update the baseline (after fixing or intentionally deferring), run:" >&2
+    echo "       python scripts/check_ui_i18n.py --write-baseline $I18N_BASELINE" >&2
+    exit 1
+  }
+else
+  python scripts/check_ui_i18n.py --enforce || exit 1
+fi
+
+exit 0

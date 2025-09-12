@@ -245,122 +245,91 @@ def _render_models_tab(settings, search_service):
     # System prompt
     st.divider()
     st.markdown(t("sidebar.system_prompt", "**System Prompt**"))
-    
+
     from pathlib import Path
-    
+
     prompt_path = settings.system_prompt_path
     candidate = Path(prompt_path)
     if not candidate.is_absolute():
         repo_root = Path(__file__).resolve().parents[2]
         candidate = repo_root / candidate
-    
-    if 'custom_system_prompt' not in st.session_state:
+
+    # Prepare immutable base and editable overlay (per-locale)
+    if 'base_system_prompt' not in st.session_state or 'custom_system_prompt' not in st.session_state:
         try:
-            # Load language-specific prompt based on current locale
             current_locale = get_locale()
-            
             # Map locales to prompt file names
             prompt_files = {
                 "en": "rag_prompt_en.md",
-                "zh-Hant": "rag_prompt_zh_hant.md", 
+                "zh-Hant": "rag_prompt_zh_hant.md",
                 "zh-Hans": "rag_prompt_zh_hans.md",
                 "es": "rag_prompt_es.md",
-                "ja": "rag_prompt_ja.md"
+                "ja": "rag_prompt_ja.md",
             }
-            
-            # Get the appropriate prompt file for current language
-            prompt_filename = prompt_files.get(current_locale, "rag_prompt_en.md")
-            
-            # Try language-specific prompt first
+
+            # Load base (immutable) template
             repo_root = Path(__file__).resolve().parents[2]
+            prompt_filename = prompt_files.get(current_locale, "rag_prompt_en.md")
             language_candidate = repo_root / prompt_filename
-            
+            base_content = ""
             if language_candidate.exists() and language_candidate.is_file():
-                content = language_candidate.read_text(encoding="utf-8").strip()
-                if content:
-                    st.session_state.custom_system_prompt = content
-                else:
-                    # Try default file as fallback
-                    if candidate.exists():
-                        st.session_state.custom_system_prompt = candidate.read_text(encoding="utf-8")
-                    else:
-                        st.session_state.custom_system_prompt = ""
-            else:
-                # Fallback to configured path (backward compatibility)
-                if candidate.exists():
-                    st.session_state.custom_system_prompt = candidate.read_text(encoding="utf-8")
-                else:
-                    st.session_state.custom_system_prompt = ""
+                base_content = language_candidate.read_text(encoding="utf-8").strip()
+            elif candidate.exists():
+                base_content = candidate.read_text(encoding="utf-8").strip()
+            st.session_state.base_system_prompt = base_content
+
+            # Load user overlay (editable), per-locale file
+            overlay_dir = repo_root / ".app_state" / "prompt_overrides"
+            overlay_dir.mkdir(parents=True, exist_ok=True)
+            overlay_path = overlay_dir / f"{current_locale}.md"
+            overlay_content = overlay_path.read_text(encoding="utf-8").strip() if overlay_path.exists() else ""
+            st.session_state.custom_system_prompt = overlay_content
         except Exception:
+            st.session_state.base_system_prompt = ""
             st.session_state.custom_system_prompt = ""
-    
+
     with st.expander(t("sidebar.edit_system_prompt", "Edit System Prompt"), expanded=False):
-        edited_prompt = st.text_area(
-            t("sidebar.prompt_content", "Prompt Content"),
-            value=st.session_state.custom_system_prompt,
+        st.caption("Base template (read-only):")
+        st.code(st.session_state.get('base_system_prompt', ''), language="markdown")
+
+        edited_overlay = st.text_area(
+            t("sidebar.prompt_content", "Your custom additions (appended to base)"),
+            value=st.session_state.get('custom_system_prompt', ''),
             height=200,
-            help=t("sidebar.prompt_help", "Customize AI behavior")
+            help=t("sidebar.prompt_help", "Customize AI behavior on top of the system template")
         )
-        
+
         col1, col2 = st.columns(2)
         with col1:
             if st.button(t("sidebar.save", "💾 Save"), type="primary", use_container_width=True):
                 try:
-                    candidate.write_text(edited_prompt, encoding="utf-8")
-                    st.session_state.custom_system_prompt = edited_prompt
+                    current_locale = get_locale()
+                    repo_root = Path(__file__).resolve().parents[2]
+                    overlay_dir = repo_root / ".app_state" / "prompt_overrides"
+                    overlay_dir.mkdir(parents=True, exist_ok=True)
+                    overlay_path = overlay_dir / f"{current_locale}.md"
+                    overlay_path.write_text(edited_overlay, encoding="utf-8")
+                    st.session_state.custom_system_prompt = edited_overlay
                     if search_service:
                         search_service.reload_system_prompt()
                     st.success(t("common.saved", "✅ Saved!"))
                 except Exception as e:
                     st.error(t("sidebar.error", "❌ Error: {error}", error=str(e)))
-        
+
         with col2:
             if st.button(t("common.reset", "🔄 Reset"), use_container_width=True):
                 try:
-                    # Load language-specific prompt based on current locale
                     current_locale = get_locale()
-                    
-                    # Map locales to prompt file names
-                    prompt_files = {
-                        "en": "rag_prompt_en.md",
-                        "zh-Hant": "rag_prompt_zh_hant.md", 
-                        "zh-Hans": "rag_prompt_zh_hans.md",
-                        "es": "rag_prompt_es.md",
-                        "ja": "rag_prompt_ja.md"
-                    }
-                    
-                    # Get the appropriate prompt file for current language
-                    prompt_filename = prompt_files.get(current_locale, "rag_prompt_en.md")
-                    
-                    # Try language-specific prompt first
                     repo_root = Path(__file__).resolve().parents[2]
-                    language_candidate = repo_root / prompt_filename
-                    
-                    prompt_content = ""
-                    
-                    if language_candidate.exists() and language_candidate.is_file():
-                        prompt_content = language_candidate.read_text(encoding="utf-8").strip()
-                        if prompt_content:
-                            st.session_state.custom_system_prompt = prompt_content
-                            st.success(t("common.reset_success", f"✅ Reset to {current_locale} prompt!"))
-                        else:
-                            raise ValueError(f"Language-specific prompt file is empty: {language_candidate}")
-                    else:
-                        # Fallback to configured path (backward compatibility)
-                        if candidate.exists():
-                            prompt_content = candidate.read_text(encoding="utf-8").strip()
-                            if prompt_content:
-                                st.session_state.custom_system_prompt = prompt_content
-                                st.success(t("common.reset_success", "✅ Reset to default prompt!"))
-                            else:
-                                raise ValueError(f"Default prompt file is empty: {candidate}")
-                        else:
-                            raise ValueError(f"No prompt file found for language {current_locale}")
-                    
-                    # Also reload search service if available
+                    overlay_dir = repo_root / ".app_state" / "prompt_overrides"
+                    overlay_dir.mkdir(parents=True, exist_ok=True)
+                    overlay_path = overlay_dir / f"{current_locale}.md"
+                    # Clear the overlay (keep base intact)
+                    overlay_path.write_text("", encoding="utf-8")
+                    st.session_state.custom_system_prompt = ""
                     if search_service is not None:
                         search_service.reload_system_prompt()
-                    
+                    st.success(t("common.reset_success", "✅ Reset!"))
                     st.rerun()
                 except Exception as e:
                     st.error(t("sidebar.error", "❌ Error: {error}", error=str(e)))
@@ -400,6 +369,8 @@ def _render_settings_tab(settings, search_service=None):
             # Clear all cached prompt-related session state first
             if 'custom_system_prompt' in st.session_state:
                 del st.session_state.custom_system_prompt
+            if 'base_system_prompt' in st.session_state:
+                del st.session_state.base_system_prompt
             if 'last_prompt_locale' in st.session_state:
                 st.session_state.last_prompt_locale = choice
             

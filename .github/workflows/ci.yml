@@ -14,3 +14,13 @@ jobs:
       - run: pip install -r requirements.txt
       - run: pytest -q
 
+  i18n-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Enforce i18n check (fail on new violations)
+        run: |
+          python scripts/check_ui_i18n.py --baseline .i18n/i18n_ui_baseline.txt --enforce
