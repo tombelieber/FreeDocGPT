@@ -439,13 +439,17 @@ def _render_models_tab(settings, search_service):
             with col2:
                 if st.button("🔄 Reset", use_container_width=True):
                     try:
-                        # Reset to language-appropriate prompt
+                        # Force reload prompt for current language
+                        current_locale = get_locale()
                         reset_content = load_language_aware_prompt()
                         if reset_content:
                             st.session_state.custom_system_prompt = reset_content
-                            st.success(t("settings.prompt_reset_success", "✅ Prompt reset to current language default"))
+                            # Also invalidate search service cache to ensure it picks up the reset
+                            if search_service is not None:
+                                search_service.invalidate_prompt_cache()
+                            st.success(f"✅ Prompt reset to {current_locale} language default")
                         else:
-                            st.warning(t("settings.no_prompt_file", "⚠️ No prompt file found for current language"))
+                            st.warning(f"⚠️ No prompt file found for language: {current_locale}")
                         st.rerun()
                     except Exception as e:
                         st.error(f"❌ Error resetting: {str(e)}")

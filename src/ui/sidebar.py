@@ -246,24 +246,36 @@ def _render_settings_tab(settings, search_service=None):
     )
     
     if choice != current:
+        # Force locale change immediately
         set_locale(choice)
+        # Force session state update by explicitly setting it again
+        st.session_state["locale"] = choice
+        
         try:
             st.query_params["locale"] = choice
             save_locale(choice)
-            # Reload system prompt with new language
-            if search_service is not None:
-                try:
-                    search_service.reload_system_prompt()
-                    st.success(t("sidebar.language_success", "✅ Language changed and system prompt reloaded!"))
-                except Exception as e:
-                    st.warning(t("sidebar.language_changed_warning", "⚠️ Language changed but failed to reload prompt: {error}", error=str(e)))
-            # Clear the cached system prompt in settings panel session state
+            
+            # Clear all cached prompt-related session state first
             if 'custom_system_prompt' in st.session_state:
                 del st.session_state.custom_system_prompt
             if 'last_prompt_locale' in st.session_state:
                 st.session_state.last_prompt_locale = choice
-        except Exception:
-            pass
+            
+            # Force prompt cache invalidation and reload
+            if search_service is not None:
+                try:
+                    # Invalidate cache first, then reload to ensure fresh language-aware load
+                    search_service.invalidate_prompt_cache()
+                    search_service.reload_system_prompt()
+                    st.success(t("sidebar.language_success", "✅ Language changed and system prompt reloaded!"))
+                except Exception as e:
+                    st.warning(t("sidebar.language_changed_warning", "⚠️ Language changed but failed to reload prompt: {error}", error=str(e)))
+            else:
+                st.warning("⚠️ Search service not available, prompt will be reloaded on next query")
+                
+        except Exception as e:
+            st.error(f"❌ Error during language change: {e}")
+        
         st.rerun()
     
     # Interface settings
