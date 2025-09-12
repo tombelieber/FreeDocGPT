@@ -141,37 +141,108 @@ def render_settings_panel(search_service=None):
         st.markdown(f"#### {t('settings.best_practices', '💡 Best Practices')}")
         st.markdown(f"**{t('settings.bp_notion_title', '📌 For Notion/Lark Export:')}**\n{t('settings.bp_notion_list', '- Export as Markdown')}\n\n**{t('settings.bp_reco_title', '📊 Recommended Settings:')}**\n{t('settings.bp_reco_list', '- Meeting Notes: 600-800 chunk, 100 overlap')}")
         
-        st.subheader(t("settings.prompt", "Prompt"))
+        st.subheader(t("settings.prompt", "System Prompt"))
         from pathlib import Path
+        
         # Resolve prompt path similarly to SearchService
         prompt_path = settings.system_prompt_path
         candidate = Path(prompt_path)
         if not candidate.is_absolute():
             repo_root = Path(__file__).resolve().parents[2]
             candidate = repo_root / candidate
-        st.caption(t("settings.prompt_active", "Active system prompt file:"))
-        st.code(str(candidate))
-        # Optional preview (avoid nested expanders per Streamlit limitations)
-        try:
-            if candidate.exists():
-                preview = candidate.read_text(encoding="utf-8")[:300]
-                show_preview = st.checkbox(t("settings.preview_first300", "Preview first 300 chars"), value=False)
-                if show_preview:
-                    st.text(preview)
-            else:
-                st.warning(t("settings.prompt_not_found", "Prompt file not found; using default built-in prompt."))
-        except Exception as e:
-            st.warning(t("settings.prompt_could_not_read", "Could not read prompt file: {err}", err=e))
-        # Reload button
-        if st.button(t("settings.reload_prompt", "🔁 Reload System Prompt"), help=None):
-            if search_service is not None:
-                try:
-                    search_service.reload_system_prompt()
-                    st.success(t("settings.reload_ok", "System prompt reloaded."))
-                except Exception as e:
-                    st.error(t("settings.reload_fail", "Failed to reload prompt: {err}", err=e))
-            else:
-                st.info(t("settings.reload_na", "Search service not available to reload prompt."))
+        
+        # Initialize session state for custom prompt
+        if 'custom_system_prompt' not in st.session_state:
+            try:
+                if candidate.exists():
+                    st.session_state.custom_system_prompt = candidate.read_text(encoding="utf-8")
+                else:
+                    st.session_state.custom_system_prompt = ""
+            except Exception:
+                st.session_state.custom_system_prompt = ""
+        
+        # Tab interface for prompt customization
+        prompt_tab1, prompt_tab2 = st.tabs([
+            t("settings.prompt_tab_edit", "✏️ Edit Prompt"),
+            t("settings.prompt_tab_info", "ℹ️ File Info")
+        ])
+        
+        with prompt_tab1:
+            st.markdown(t("settings.prompt_edit_desc", "**Edit the system prompt directly:**"))
+            
+            # Text editor for system prompt
+            edited_prompt = st.text_area(
+                t("settings.prompt_editor", "System Prompt Content"),
+                value=st.session_state.custom_system_prompt,
+                height=300,
+                help=t("settings.prompt_editor_help", "Edit the system prompt that guides AI responses. Changes are saved when you click 'Save Changes'.")
+            )
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                if st.button(t("settings.save_prompt", "💾 Save Changes"), type="primary"):
+                    try:
+                        # Write the edited prompt to file
+                        candidate.write_text(edited_prompt, encoding="utf-8")
+                        st.session_state.custom_system_prompt = edited_prompt
+                        
+                        # Reload the search service if available
+                        if search_service is not None:
+                            search_service.reload_system_prompt()
+                        
+                        st.success(t("settings.prompt_saved", "✅ System prompt saved and reloaded!"))
+                    except Exception as e:
+                        st.error(t("settings.prompt_save_error", "❌ Error saving prompt: {err}", err=str(e)))
+            
+            with col2:
+                if st.button(t("settings.reset_prompt", "🔄 Reset to File")):
+                    try:
+                        if candidate.exists():
+                            st.session_state.custom_system_prompt = candidate.read_text(encoding="utf-8")
+                            st.success(t("settings.prompt_reset", "✅ Prompt reset to file content"))
+                        else:
+                            st.warning(t("settings.prompt_file_missing", "⚠️ Prompt file not found"))
+                        st.rerun()
+                    except Exception as e:
+                        st.error(t("settings.prompt_reset_error", "❌ Error resetting: {err}", err=str(e)))
+            
+            with col3:
+                if st.button(t("settings.reload_prompt", "🔁 Reload Service")):
+                    if search_service is not None:
+                        try:
+                            search_service.reload_system_prompt()
+                            st.success(t("settings.reload_ok", "✅ System prompt service reloaded"))
+                        except Exception as e:
+                            st.error(t("settings.reload_fail", "❌ Failed to reload: {err}", err=str(e)))
+                    else:
+                        st.info(t("settings.reload_na", "⚠️ Search service not available"))
+        
+        with prompt_tab2:
+            st.caption(t("settings.prompt_active", "**Active system prompt file:**"))
+            st.code(str(candidate), language="text")
+            
+            # File status and preview
+            try:
+                if candidate.exists():
+                    file_size = candidate.stat().st_size
+                    st.caption(f"📄 File size: {file_size} bytes")
+                    
+                    # Show character count of current content
+                    char_count = len(st.session_state.custom_system_prompt)
+                    st.caption(f"✏️ Current content: {char_count} characters")
+                    
+                    # Preview toggle
+                    show_preview = st.checkbox(t("settings.preview_first300", "Show preview (first 300 chars)"), value=False)
+                    if show_preview:
+                        preview = st.session_state.custom_system_prompt[:300]
+                        if len(st.session_state.custom_system_prompt) > 300:
+                            preview += "..."
+                        st.text(preview)
+                else:
+                    st.warning(t("settings.prompt_not_found", "⚠️ Prompt file not found; using default built-in prompt."))
+            except Exception as e:
+                st.warning(t("settings.prompt_could_not_read", "⚠️ Could not read prompt file: {err}", err=e))
 
         st.subheader(t("settings.models", "Models"))
         
@@ -193,3 +264,15 @@ def render_settings_panel(search_service=None):
         # Check Ollama connection
         if st.button(t("settings.check_ollama", "🔍 Check Ollama Status")):
             display_ollama_status()
+
+        st.subheader(t("settings.ui", "UI Settings"))
+        
+        # Sound notification toggle
+        completion_sound = st.checkbox(
+            t("settings.completion_sound", "🔊 Play sound when response completes"),
+            value=st.session_state.get('enable_completion_sound', settings.enable_completion_sound),
+            help=t("settings.completion_sound_help", "Play a notification sound when AI finishes generating a response")
+        )
+        
+        # Update session state
+        st.session_state['enable_completion_sound'] = completion_sound

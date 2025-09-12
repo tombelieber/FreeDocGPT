@@ -111,6 +111,9 @@ class Settings:
     # this value is for future UI hints/fallbacks
     first_token_timeout: float = field(default_factory=lambda: float(_getenv("FIRST_TOKEN_TIMEOUT", "30.0")))
     
+    # UI notification settings
+    enable_completion_sound: bool = field(default_factory=lambda: _getenv("ENABLE_COMPLETION_SOUND", "true").lower() == "true")
+    
     def get_documents_path(self) -> Path:
         """Get the documents folder path, creating it if necessary."""
         path = Path(self.documents_folder)

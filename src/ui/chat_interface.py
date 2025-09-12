@@ -4,6 +4,7 @@ import time
 
 import ollama
 import streamlit as st
+import streamlit.components.v1 as components
 
 from ..config import get_settings
 from ..utils import check_ollama_status
@@ -13,6 +14,55 @@ from ..document_processing import VisionDocumentReader
 from .i18n import t
 
 logger = logging.getLogger(__name__)
+
+
+def play_completion_sound():
+    """Play a notification sound when response generation is complete."""
+    # Create a pleasant two-tone notification sound
+    sound_html = """
+    <script>
+    // Create a pleasant notification sound using Web Audio API
+    try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // Function to play a tone
+        function playTone(frequency, startTime, duration, volume = 0.3) {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime + startTime);
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime + startTime);
+            gainNode.gain.linearRampToValueAtTime(volume, audioContext.currentTime + startTime + 0.01);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + startTime + duration);
+            
+            oscillator.start(audioContext.currentTime + startTime);
+            oscillator.stop(audioContext.currentTime + startTime + duration);
+        }
+        
+        // Play a pleasant two-tone notification (like iOS/macOS notification)
+        playTone(600, 0, 0.15, 0.4);      // First tone: 600Hz for 150ms
+        playTone(800, 0.1, 0.2, 0.3);     // Second tone: 800Hz for 200ms, starting 100ms later
+        
+        console.log("🔊 Completion sound played");
+        
+    } catch (e) {
+        console.log("Audio context not available:", e);
+        // Fallback: try simple browser beep
+        try {
+            // Some browsers support this
+            const audio = new Audio("data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmEYBSuHy+/PeS4FJoPR8d6NOwkSWa3o0YhKFQ5Mm9/zt2EYBTaG1e/PdysFIX6O6tVMFQ4+n8/PdKTSYa5U");
+            audio.volume = 0.3;
+            audio.play().catch(() => {}); // Ignore errors
+        } catch (fallbackError) {
+            console.log("Fallback audio also failed:", fallbackError);
+        }
+    }
+    </script>
+    """
+    components.html(sound_html, height=0)
 
 
 def render_chat_interface(search_service: SearchService, chat_service: ChatService):
@@ -99,6 +149,13 @@ def render_chat_interface(search_service: SearchService, chat_service: ChatServi
                         "role": "assistant", 
                         "content": meta_response['message']
                     })
+
+                    # Play completion sound if enabled for meta-queries too
+                    if st.session_state.get('enable_completion_sound', False):
+                        try:
+                            play_completion_sound()
+                        except Exception as e:
+                            logger.debug(f"Failed to play completion sound for meta-query: {e}")
                 else:
                     st.error(meta_response['message'])
                 
@@ -667,6 +724,14 @@ Be concise but show your reasoning process. Write in a thinking style, like you'
                     
                     st.session_state.response_stats.append(stats)
                     st.session_state.messages.append({"role": "assistant", "content": response_text})
+
+                    # Play completion sound if enabled
+                    if st.session_state.get('enable_completion_sound', False):
+                        try:
+                            play_completion_sound()
+                        except Exception as e:
+                            # Non-fatal error - don't disrupt the chat
+                            logger.debug(f"Failed to play completion sound: {e}")
 
                     # Trim chat history to configured limit (keep last N turns)
                     try:
