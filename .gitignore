@@ -76,3 +76,6 @@ Icon
 
 .cache/
 .chat_history/
+
+# Documents directory
+documents/
