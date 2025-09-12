@@ -381,9 +381,12 @@ def _render_models_tab(settings, search_service):
         if 'last_prompt_locale' not in st.session_state:
             st.session_state.last_prompt_locale = current_locale
         elif st.session_state.last_prompt_locale != current_locale:
-            # Language changed, reload prompt
+            # Language changed, reload prompt and clear cache
             st.session_state.custom_system_prompt = load_language_aware_prompt()
             st.session_state.last_prompt_locale = current_locale
+            # Also invalidate search service prompt cache if available
+            if search_service is not None:
+                search_service.invalidate_prompt_cache()
         
         # Tab interface for prompt customization
         prompt_tab1, prompt_tab2 = st.tabs([

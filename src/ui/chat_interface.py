@@ -803,8 +803,8 @@ Be concise but show your reasoning process. Write in a thinking style, like you'
     
     # Footer
     st.divider()
-    # Create equal-height columns for buttons
-    button_col1, button_col2, col3 = st.columns([2, 2, 1])
+    # Create equal-height columns for buttons - now with 3 columns for thinking mode
+    button_col1, button_col2, button_col3 = st.columns([2, 2, 2])
     
     with button_col1:
         if st.button(t("buttons.clear_chat", "🔄 Clear Chat"), use_container_width=True):
@@ -813,6 +813,16 @@ Be concise but show your reasoning process. Write in a thinking style, like you'
             st.rerun()
     
     with button_col2:
+        # Thinking mode toggle - moved from sidebar for easier access
+        thinking_mode = st.checkbox(
+            "🤔 Thinking Mode", 
+            value=st.session_state.get('thinking_mode', False),
+            help="Show AI reasoning process",
+            key="thinking_mode_toggle"
+        )
+        st.session_state['thinking_mode'] = thinking_mode
+    
+    with button_col3:
         # Context usage as a disabled button to match styling exactly
         if settings.enable_context_indicator:
             try:

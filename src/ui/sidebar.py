@@ -126,14 +126,7 @@ def _render_search_tab(settings, search_service):
         st.caption(f"📝 Keyword: {kw_pct}% | 🎯 Vector: {vec_pct}%")
     
     
-    # AI features
-    st.divider()
-    thinking_mode = st.checkbox(
-        "🤔 AI Thinking Mode", 
-        value=st.session_state.get('thinking_mode', False),
-        help="Show AI reasoning process"
-    )
-    st.session_state['thinking_mode'] = thinking_mode
+    # AI features - thinking mode moved to chat footer for better accessibility
 
 
 def _render_models_tab(settings, search_service):
@@ -264,6 +257,11 @@ def _render_settings_tab(settings, search_service=None):
                     st.success("✅ Language changed and system prompt reloaded!")
                 except Exception as e:
                     st.warning(f"⚠️ Language changed but failed to reload prompt: {e}")
+            # Clear the cached system prompt in settings panel session state
+            if 'custom_system_prompt' in st.session_state:
+                del st.session_state.custom_system_prompt
+            if 'last_prompt_locale' in st.session_state:
+                st.session_state.last_prompt_locale = choice
         except Exception:
             pass
         st.rerun()
