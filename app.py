@@ -14,12 +14,14 @@ from src.core import (
     DatabaseManager,
     DocumentIndexer,
     SearchService,
-    ChatService
+    ChatService,
+    ChatHistoryManager
 )
 from src.ui import (
     render_sidebar,
     render_chat_interface,
-    render_settings_panel
+    render_settings_panel,
+    render_modern_chat_history
 )
 from src.ui.i18n import t, normalize_locale
 from src.ui.locale_persistence import load_locale, save_locale
@@ -31,23 +33,36 @@ logger = setup_logging(log_level="INFO")
 
 def initialize_services():
     """Initialize all required services (cached across reruns)."""
+    settings = get_settings()
+    
     # Reuse existing instances to avoid duplicate initialization and log spam
     if 'services' in st.session_state:
         svc = st.session_state['services']
-        return svc['db_manager'], svc['indexer'], svc['search_service'], svc['chat_service']
+        return (svc['db_manager'], svc['indexer'], svc['search_service'], 
+                svc['chat_service'], svc.get('history_manager'))
 
     db_manager = DatabaseManager()
     indexer = DocumentIndexer(db_manager=db_manager)
     search_service = SearchService(db_manager=db_manager)
     chat_service = ChatService()
+    
+    # Initialize chat history manager if enabled
+    history_manager = None
+    if settings.enable_chat_history:
+        try:
+            history_manager = ChatHistoryManager(history_dir=settings.chat_history_dir)
+        except Exception as e:
+            logger.error(f"Failed to initialize ChatHistoryManager: {e}")
+            # Continue without chat history if it fails
 
     st.session_state['services'] = {
         'db_manager': db_manager,
         'indexer': indexer,
         'search_service': search_service,
         'chat_service': chat_service,
+        'history_manager': history_manager,
     }
-    return db_manager, indexer, search_service, chat_service
+    return db_manager, indexer, search_service, chat_service, history_manager
 
 
 def main():
@@ -113,10 +128,14 @@ def main():
     st.markdown(t("app.subtitle", "Free, local document buddy — drop files in `documents/` and start asking questions."))
     
     # Initialize services
-    db_manager, indexer, search_service, chat_service = initialize_services()
+    db_manager, indexer, search_service, chat_service, history_manager = initialize_services()
     
-    # Render sidebar
+    # Render sidebar components
     render_sidebar(db_manager, indexer, search_service)
+    
+    # Render modern chat history panel in sidebar if enabled
+    if history_manager:
+        render_modern_chat_history(history_manager)
     
     # Render settings in sidebar
     with st.sidebar:
@@ -124,7 +143,7 @@ def main():
         render_settings_panel(search_service)
     
     # Render main chat interface
-    render_chat_interface(search_service, chat_service)
+    render_chat_interface(search_service, chat_service, history_manager)
 
 
 if __name__ == "__main__":
