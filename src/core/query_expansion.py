@@ -384,3 +384,100 @@ class SmartQueryProcessor:
             queries.append(query)
         
         return queries[:num_queries]
+    
+    def reformulate_with_context(
+        self, 
+        query: str, 
+        conversation_history: List[Dict]
+    ) -> str:
+        """
+        Reformulate query using conversation context to resolve pronouns and references.
+        
+        Args:
+            query: Current user query that may contain pronouns/references
+            conversation_history: Previous conversation messages
+            
+        Returns:
+            Reformulated query with resolved references
+        """
+        # Check if query contains pronouns or references that need context
+        pronouns = ["it", "its", "that", "this", "these", "those", "them", "they", "their"]
+        query_lower = query.lower()
+        
+        # Check if query likely needs context
+        needs_context = False
+        for pronoun in pronouns:
+            if re.search(r'\b' + pronoun + r'\b', query_lower):
+                needs_context = True
+                break
+        
+        # Also check for follow-up patterns
+        follow_up_patterns = [
+            r'^(what|how|why|when|where|who) about',
+            r'^(tell|show|explain|describe) (me )?more',
+            r'^(and|also|but|however)',
+            r'^(can|could|would|should) (you|it|that)',
+        ]
+        
+        for pattern in follow_up_patterns:
+            if re.match(pattern, query_lower):
+                needs_context = True
+                break
+        
+        if not needs_context or not conversation_history:
+            return query
+        
+        # Extract context from recent messages
+        recent_context = []
+        for msg in conversation_history[-4:]:  # Look at last 2 exchanges
+            if msg["role"] == "user":
+                recent_context.append(f"User asked: {msg['content']}")
+            elif msg["role"] == "assistant":
+                # Extract key topics from assistant response (first 200 chars)
+                content = msg["content"][:200] if len(msg["content"]) > 200 else msg["content"]
+                recent_context.append(f"Assistant discussed: {content}")
+        
+        # Build reformulated query
+        if recent_context:
+            # Simple heuristic reformulation
+            context_summary = " ".join(recent_context[-2:])  # Last exchange
+            
+            # Try to extract the main topic from recent context
+            # Look for nouns in the last user message
+            last_user_msg = None
+            for msg in reversed(conversation_history):
+                if msg["role"] == "user":
+                    last_user_msg = msg["content"]
+                    break
+            
+            if last_user_msg:
+                # Simple noun extraction (words that are likely topics)
+                words = last_user_msg.split()
+                potential_topics = []
+                for word in words:
+                    # Skip common words and keep potential topic words
+                    if len(word) > 3 and word.lower() not in [
+                        "what", "when", "where", "how", "why", "which",
+                        "about", "with", "from", "that", "this", "these",
+                        "those", "have", "been", "were", "will", "would",
+                        "could", "should", "does", "doing", "done"
+                    ]:
+                        potential_topics.append(word)
+                
+                if potential_topics:
+                    # Add context to query
+                    topic_context = " ".join(potential_topics[:3])
+                    
+                    # Replace pronouns with likely topics
+                    reformulated = query
+                    if "it" in query_lower or "its" in query_lower:
+                        reformulated = f"{query} (referring to {topic_context})"
+                    elif "that" in query_lower or "this" in query_lower:
+                        reformulated = f"{query} (about {topic_context})"
+                    else:
+                        reformulated = f"{query} (in context of {topic_context})"
+                    
+                    logger.info(f"Query reformulated: '{query}' -> '{reformulated}'")
+                    return reformulated
+        
+        return query

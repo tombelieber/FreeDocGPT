@@ -100,6 +100,8 @@ class Settings:
 
     # Chat settings
     chat_history_limit: int = field(default_factory=lambda: int(_getenv("CHAT_HISTORY_LIMIT", "20")))
+    conversation_context_turns: int = field(default_factory=lambda: int(_getenv("CONVERSATION_CONTEXT_TURNS", "3")))
+    enable_query_reformulation: bool = field(default_factory=lambda: _getenv("ENABLE_QUERY_REFORMULATION", "true").lower() == "true")
 
     # Ollama/network timeouts (seconds)
     ollama_connect_timeout: float = field(default_factory=lambda: float(_getenv("OLLAMA_CONNECT_TIMEOUT", "5.0")))

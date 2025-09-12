@@ -126,6 +126,17 @@ def render_chat_interface(search_service: SearchService, chat_service: ChatServi
             # Create main loading container
             main_loading_container = st.empty()
             
+            # Query reformulation for follow-up questions
+            search_query = prompt
+            if settings.enable_query_reformulation and len(st.session_state.get("messages", [])) > 1:
+                from ..core.query_expansion import SmartQueryProcessor
+                query_optimizer = SmartQueryProcessor()
+                # Exclude the current message we just added
+                history_for_reformulation = st.session_state.messages[:-1]
+                search_query = query_optimizer.reformulate_with_context(prompt, history_for_reformulation)
+                if search_query != prompt:
+                    st.info(f"🔄 Query enhanced for context: {search_query[:100]}...")
+            
             # Clean Search Phase 
             stage_times["search_start"] = time.time()
             with main_loading_container.container():
@@ -134,7 +145,7 @@ def render_chat_interface(search_service: SearchService, chat_service: ChatServi
                     search_mode = st.session_state.get('search_mode', settings.default_search_mode)
                     alpha = st.session_state.get('hybrid_alpha', settings.hybrid_alpha)
                     search_results, search_stats = search_service.search_similar(
-                        prompt, k=k_value, search_mode=search_mode, alpha=alpha,
+                        search_query, k=k_value, search_mode=search_mode, alpha=alpha,
                         use_smart_filtering=True  # Enable smart search optimization
                     )
             stage_times["search_end"] = time.time()
@@ -183,11 +194,16 @@ def render_chat_interface(search_service: SearchService, chat_service: ChatServi
                         if search_stats.get('search_expanded'):
                             st.caption("  🔄 Search expanded for better results")
                 
-                # Prepare main response messages
-                messages = [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ]
+                # Prepare main response messages with conversation history
+                # Get conversation history (excluding the current message we just added)
+                conversation_history = st.session_state.messages[:-1] if len(st.session_state.messages) > 1 else []
+                
+                # Build messages with history using ChatService
+                messages = chat_service.build_messages_with_history(
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    conversation_history=conversation_history
+                )
                 
                 # Check if thinking mode is enabled
                 thinking_enabled = st.session_state.get('thinking_mode', False)
