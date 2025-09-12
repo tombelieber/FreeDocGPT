@@ -283,7 +283,7 @@ def render_chat_interface(search_service: SearchService, chat_service: ChatServi
                         if 'filtered_search_space' in search_stats:
                             st.caption(f"  🚀 Search space: {search_stats['filtered_search_space']} docs")
                         if search_stats.get('search_expanded'):
-                            st.caption("  🔄 Search expanded for better results")
+                            st.caption(t("chat.search_expanded_for_results", "  🔄 Search expanded for better results"))
                 
                 # Prepare main response messages with conversation history
                 # Get conversation history (excluding the current message we just added)
@@ -634,11 +634,11 @@ Be concise but show your reasoning process. Write in a thinking style, like you'
                                         with cols[2]:
                                             st.caption(f"⚡ {token_count/elapsed:.1f} tok/s" if elapsed > 0 else "⚡ --/s")
                                         with cols[3]:
-                                            st.caption("🔄 Streaming...")
+                                            st.caption(t("chat.streaming", "🔄 Streaming..."))
                                 elif waiting_for_first_token:
                                     # Show waiting indicator for first token
                                     with response_placeholder.container():
-                                        st.info("🤔 AI is thinking...")
+                                        st.info(t("chat.ai_thinking", "🤔 AI is thinking..."))
                         except Exception as stream_error:
                             st.error(f"Streaming error: {stream_error}")
                             logger.error(f"Streaming error details: {stream_error}")
@@ -648,7 +648,7 @@ Be concise but show your reasoning process. Write in a thinking style, like you'
                         # If no content streamed, try a non-streaming fallback
                         if not response_text:
                             if chunk_count == 0:
-                                st.warning("🔄 No chunks received from stream, trying non-streaming mode...")
+                                st.warning(t("chat.no_chunks_received", "🔄 No chunks received from stream, trying non-streaming mode..."))
                                 logger.warning("No chunks received from Ollama stream")
                             else:
                                 # Show debugging info to user
@@ -745,7 +745,7 @@ Be concise but show your reasoning process. Write in a thinking style, like you'
                         with cols[2]:
                             st.caption(f"⚡ {stats['tokens_per_sec']:.1f} tok/s")
                         with cols[3]:
-                            st.caption("✅ Complete")
+                            st.caption(t("common.complete", "✅ Complete"))
                         
                         # Detailed stage breakdown (collapsible)
                         with st.expander("📊 **Detailed Stage Timing**", expanded=False):

@@ -586,6 +586,21 @@ _TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "chat.smart_search_optimization": "🎯 Smart Search Optimization:",
         "chat.search_expanded": "🔄 Search expanded for better results",
         "chat.no_chunks_received": "🔄 No chunks received from stream, trying non-streaming mode...",
+        "chat.search_expanded_for_results": "  🔄 Search expanded for better results",
+        "chat.streaming": "🔄 Streaming...",
+        "chat.ai_thinking": "🤔 AI is thinking...",
+        
+        # Settings Panel - Final Missing Keys
+        "settings.display_layout_title": "#### 🖥️ Display & Layout",
+        "settings.display_layout_caption": "Customize the appearance and layout",
+        "settings.behavior_title": "#### ⚡ Behavior & Performance",
+        "settings.behavior_caption": "Control how the interface behaves",
+        "settings.planned_features_title": "#### 🎯 Planned Interface Features",
+        "settings.want_specific_feature": "💡 **Want a specific feature?** These will be added based on user feedback and usage patterns.",
+        "settings.session_details_title": "#### 🔍 Session Details",
+        
+        # Sidebar - Final Missing Keys
+        "sidebar.search_service_unavailable": "⚠️ Search service not available, prompt will be reloaded on next query",
     },
     "zh-Hant": {
         "app.title": "📚 免費文件GPT",

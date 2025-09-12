@@ -1,6 +1,11 @@
-# 📚 FreeDocGPT（免費文件GPT）
+<p align="center">
+  <img src="assets/banner.png" alt="FreeDocGPT Banner" width="100%">
+</p>
+
+# 📚 FreeDocGPT - Free Local Document AI Assistant
 
 Language Quick Start · 語言 · 语言 · Idiomas · 言語
+
 - English: see [Quick Start (EN)](#quick-start-en)
 - 繁體中文: 參見 [快速開始（繁中）](#quick-start-zh-hant)
 - 简体中文: 参见 [快速开始（简中）](#quick-start-zh-hans)
@@ -9,28 +14,29 @@ Language Quick Start · 語言 · 语言 · Idiomas · 言語
 
 Your free, local document AI assistant — read, search, ask, and learn from multiple files without cloud costs or API keys.
 
-> 零成本、本地運行、私密安全。把檔案丟進 `documents/`，就能閱讀、搜尋、問答、整理、學習。
+> Zero cost, runs locally, private and secure. Drop files into `documents/` and start reading, searching, asking, organizing, and learning.
 
 With local models like gpt-oss:20b and Embedding Gemma available in Ollama, you can run this AI document helper fully on your Mac — no cloud, no sign‑ups. Just drop files and ask.
 
 ## 💬 Community & Support
 
-Join our Discord community for support, discussions, and updates: [https://discord.gg/usRtaeY8](https://discord.gg/usRtaeY8)
+Join our Discord community for support, discussions, and updates: <https://discord.gg/usRtaeY8>
 
 - 🤝 Get help from the community
 - 🐛 Report issues and bugs
-- 💡 Share feature ideas and feedback  
+- 💡 Share feature ideas and feedback
 - 📢 Stay updated on new releases
 
-—
+---
 
 Table of Contents
+
 - [Why This Project & Why Now](#-why-this-project--why-now)
 - [For Everyone (No Tech Needed)](#-for-everyone-no-tech-needed)
 - [For Technical Users](#-for-technical-users)
 - [Quick Start (EN)](#quick-start-en)
 - [Features](#-features)
-- [Configuration (.env)](#-configuration--env)
+- [Configuration (.env)](#configuration-env)
 - [Tips](#tips)
 - [Languages](#languages)
 - [Testing (optional)](#testing-optional)
@@ -45,6 +51,7 @@ Open‑source model releases make private, on‑your‑Mac AI document help poss
 - With Ollama, these run on your computer — no cloud accounts, no fees, and your files never leave your device.
 
 Why we built FreeDocGPT:
+
 - So you don't miss this moment just because it used to be "too technical".
 - A friendly app: drop files, press "Index", then ask questions in plain language.
 - Sensible defaults baked in; you don't need to know how it works inside.
@@ -62,9 +69,11 @@ In short: Modern local models make trustworthy, private document help possible a
 Tip: If you see unfamiliar terms, ignore them — the default settings already give good results.
 
 ## 🚀 Quick Start (EN)
+
 <a id="quick-start-en"></a>
 
 ### 1) Install prerequisites (macOS)
+
 ```bash
 brew install ollama           # Local LLM runtime
 ollama serve &                # Start Ollama
@@ -74,26 +83,30 @@ ollama pull llava:7b         # (Optional) Vision model for image Q&A
 ```
 
 ### 2) Setup Python env
+
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
 ### 3) Add documents
+
 ```bash
 mkdir -p documents
 # Put your PDFs, Word, Markdown, HTML, CSV, TXT… here
 ```
 
 ### 4) Run the app
+
 ```bash
 streamlit run app.py
 # Open http://localhost:8501
 ```
 
 ### 5) Use it
+
 - Sidebar → "🔄 Index New Documents" to index files
-- Ask: “幫我總結這份合約重點？” / “Explain the API auth section.”
+- Ask: "Summarize the key points of this contract" / "Explain the API auth section."
 - See sources and tweak search settings as needed
 
 ## 🧑‍🔬 For Technical Users
@@ -114,13 +127,14 @@ This app is a local, privacy‑first RAG (Retrieval‑Augmented Generation) syst
 - Caching: Utilities for disk‑based caches (diskcache) for embeddings and search results are included.
 - Async/Batch: Async/batch modules using asyncio + executors are included.
 
-Why it’s fast and local:
+Why it's fast and local:
+
 - Tantivy (Rust) for BM25; LanceDB + PyArrow for vectors and metadata.
 - ARM64‑friendly libs (xxHash, Faiss‑CPU, Tiktoken) tuned for M‑series.
 
 ## 🧭 Project Structure
 
-```
+```text
 app.py                  # Streamlit entrypoint
 src/
   core/                 # Retrieval, indexing, chat, caching, hybrid
@@ -285,60 +299,72 @@ OLLAMA_HOST=http://localhost:11434
 - **Read & Learn**: Summaries, explanations, and step‑by‑step guidance from your files.
 - **Search that understands**: Hybrid (keyword + vector) search for better results.
 - **Local & free**: Runs entirely on your Mac with Ollama — no API keys.
- - **Vision support**: Understands PDFs with images, charts, and screenshots (via LLaVA; install a model like `llava:7b`).
+- **Vision support**: Understands PDFs with images, charts, and screenshots (via LLaVA; install a model like `llava:7b`).
 
 <a id="quick-start-zh-hant"></a>
+
 ## 快速開始（繁中）
+
 把檔案放進 `documents/`，索引後就能用中文/英文提問。
 
-1) 安裝（macOS）
-- `brew install ollama`
-- `ollama serve &`
-- `ollama pull gpt-oss:20b`
-- `ollama pull embeddinggemma:300m`
-- `ollama pull llava:7b`  # （選用）影像理解模型
+1. 安裝（macOS）
 
-2) 建置環境
-- `python3 -m venv .venv && source .venv/bin/activate`
-- `pip install -r requirements.txt`
+   - `brew install ollama`
+   - `ollama serve &`
+   - `ollama pull gpt-oss:20b`
+   - `ollama pull embeddinggemma:300m`
+   - `ollama pull llava:7b`  # （選用）影像理解模型
 
-3) 放入文件：建立 `documents/` 並放入 PDF、Word、Markdown、TXT…
+2. 建置環境
 
-4) 執行：`streamlit run app.py`（開啟 http://localhost:8501）
+   - `python3 -m venv .venv && source .venv/bin/activate`
+   - `pip install -r requirements.txt`
 
-5) 使用方式
-- 側邊欄點「🔄 建立新索引」，然後在對話框提問
-- 來源與搜尋設定可在頁面中查看與調整
+3. 放入文件：建立 `documents/` 並放入 PDF、Word、Markdown、TXT…
+
+4. 執行：`streamlit run app.py`（開啟 <http://localhost:8501>）
+
+5. 使用方式
+
+   - 側邊欄點「🔄 建立新索引」，然後在對話框提問
+   - 來源與搜尋設定可在頁面中查看與調整
 
 <a id="quick-start-zh-hans"></a>
+
 ## 快速开始（简中）
 把文件放进 `documents/`，建立索引后即可中/英文提问。
 
-1) 安装（macOS）
-- `brew install ollama`
-- `ollama serve &`
-- `ollama pull gpt-oss:20b`
-- `ollama pull embeddinggemma:300m`
-- `ollama pull llava:7b`  # （可选）图像理解模型
+1. 安装（macOS）
 
-2) 环境
-- `python3 -m venv .venv && source .venv/bin/activate`
-- `pip install -r requirements.txt`
+   - `brew install ollama`
+   - `ollama serve &`
+   - `ollama pull gpt-oss:20b`
+   - `ollama pull embeddinggemma:300m`
+   - `ollama pull llava:7b`  # （可选）图像理解模型
 
-3) 放入文件：创建 `documents/`，加入 PDF、Word、Markdown、TXT…
+2. 环境
 
-4) 运行：`streamlit run app.py`（打开 http://localhost:8501）
+   - `python3 -m venv .venv && source .venv/bin/activate`
+   - `pip install -r requirements.txt`
 
-5) 用法
-- 侧边栏点“🔄 建立新索引”，然后在对话框提问
-- 可查看来源并调整搜索设置
+3. 放入文件：创建 `documents/`，加入 PDF、Word、Markdown、TXT…
+
+4. 运行：`streamlit run app.py`（打开 <http://localhost:8501>）
+
+5. 用法
+
+   - 侧边栏点"🔄 建立新索引"，然后在对话框提问
+   - 可查看来源并调整搜索设置
 
 <a id="quick-start-es"></a>
+
 ## Inicio Rápido (ES)
+
 Coloca archivos en `documents/`, indexa y pregunta en español o inglés.
 
-1) Instala (macOS)
-- `brew install ollama`
+1. Instala (macOS)
+
+   - `brew install ollama`
 - `ollama serve &`
 - `ollama pull gpt-oss:20b`
 - `ollama pull embeddinggemma:300m`
@@ -388,6 +414,7 @@ Coloca archivos en `documents/`, indexa y pregunta en español o inglés.
 - **Index management**: Reset/clear index when needed
 
 ## ⚙️ Configuration (.env optional)
+
 ```env
 DB_DIR=.lancedb
 TABLE_NAME=docs
@@ -399,9 +426,9 @@ VISION_MODEL=llava:7b
 
 ## Tips
 
-- Notion/飛書(Feishu/Lark) 請匯出為 Markdown 再放進 `documents/`。
-- 技術文件可把 chunk 設大一些（1500–1800），Overlap 300–400。
-- 找不到答案時：多放幾份檔案或提高 Top‑K。
+- For Notion/Feishu/Lark: Export as Markdown before placing in `documents/`.
+- For technical documents: Use larger chunk sizes (1500–1800) with overlap 300–400.
+- If no answers found: Add more files or increase Top‑K value.
 
 ## Languages
 
@@ -412,14 +439,16 @@ VISION_MODEL=llava:7b
 - URL override: add `?locale=ja` (or `en`, `zh-Hant`, `zh-Hans`, `es`)
 
 ## Testing (optional)
+
 - Core tests: `python test_indexing.py`, `python test_hybrid_search.py`
 - Phase 2: `python test_phase2_simple.py`, `python test_phase2_features.py`
-- Vision: `python test_vision.py`（需在 `documents/` 放一份 PDF）
+- Vision: `python test_vision.py` (requires a PDF file in `documents/`)
 
 ## Privacy & Requirements
-- 100% 本地運行，資料不出機器；無需雲端 API 金鑰。
-- 建議 16GB+ RAM；模型下載約需 10–15GB 空間。
 
-—
+- 100% local operation, data never leaves your machine; no cloud API keys required.
+- Recommended 16GB+ RAM; model downloads require approximately 10–15GB storage space.
+
+---
 
 Made with love for everyone who wants AI‑powered document help without paying for the cloud.

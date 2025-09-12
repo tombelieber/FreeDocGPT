@@ -408,7 +408,7 @@ def _render_models_tab(settings, search_service):
             col1, col2, col3 = st.columns(3)
             
             with col1:
-                if st.button("💾 Save Changes", type="primary", use_container_width=True):
+                if st.button(t("settings.save_changes", "💾 Save Changes"), type="primary", use_container_width=True):
                     try:
                         # Save to the appropriate language-specific file
                         current_locale = get_locale()
@@ -437,16 +437,16 @@ def _render_models_tab(settings, search_service):
                         st.error(f"❌ Error saving prompt: {str(e)}")
             
             with col2:
-                if st.button("🔄 Reset", use_container_width=True):
+                if st.button(t("settings.reset", "🔄 Reset"), use_container_width=True):
                     try:
                         # Force reload prompt for current language
                         current_locale = get_locale()
                         reset_content = load_language_aware_prompt()
                         if reset_content:
                             st.session_state.custom_system_prompt = reset_content
-                            # Also invalidate search service cache to ensure it picks up the reset
+                            # Also reload search service prompt to ensure it picks up the reset
                             if search_service is not None:
-                                search_service.invalidate_prompt_cache()
+                                search_service.reload_system_prompt()
                             st.success(f"✅ Prompt reset to {current_locale} language default")
                         else:
                             st.warning(f"⚠️ No prompt file found for language: {current_locale}")
@@ -455,7 +455,7 @@ def _render_models_tab(settings, search_service):
                         st.error(f"❌ Error resetting: {str(e)}")
             
             with col3:
-                if st.button("🔁 Reload", use_container_width=True):
+                if st.button(t("settings.reload", "🔁 Reload"), use_container_width=True):
                     if search_service is not None:
                         try:
                             search_service.reload_system_prompt()
@@ -476,14 +476,14 @@ def _render_models_tab(settings, search_service):
                     info_cols = st.columns(2)
                     
                     with info_cols[0]:
-                        st.metric("File Size", f"{file_size} bytes")
+                        st.metric(t("settings.file_size", "File Size"), f"{file_size} bytes")
                     
                     with info_cols[1]:
                         char_count = len(st.session_state.custom_system_prompt)
-                        st.metric("Content Length", f"{char_count} chars")
+                        st.metric(t("settings.content_length", "Content Length"), f"{char_count} chars")
                     
                     # Preview toggle
-                    show_preview = st.checkbox("Show content preview", value=False)
+                    show_preview = st.checkbox(t("settings.show_content_preview", "Show content preview"), value=False)
                     if show_preview:
                         st.markdown(t("settings.preview_300_chars", "**Preview (first 300 characters):**"))
                         preview = st.session_state.custom_system_prompt[:300]
@@ -547,8 +547,8 @@ def _render_interface_tab(settings):
     
     # Sub-group 2: Display Preferences
     with st.container():
-        st.markdown("#### 🖥️ Display & Layout")
-        st.caption("Customize the appearance and layout")
+        st.markdown(t("settings.display_layout_title", "#### 🖥️ Display & Layout"))
+        st.caption(t("settings.display_layout_caption", "Customize the appearance and layout"))
         
         # Placeholder controls for future display settings
         display_cols = st.columns(2)
@@ -575,8 +575,8 @@ def _render_interface_tab(settings):
     
     # Sub-group 3: Behavior Settings
     with st.container():
-        st.markdown("#### ⚡ Behavior & Performance")
-        st.caption("Control how the interface behaves")
+        st.markdown(t("settings.behavior_title", "#### ⚡ Behavior & Performance"))
+        st.caption(t("settings.behavior_caption", "Control how the interface behaves"))
         
         behavior_cols = st.columns(2)
         
@@ -600,7 +600,7 @@ def _render_interface_tab(settings):
     
     # Sub-group 4: Advanced Interface Options
     with st.expander("🚀 Coming Soon - Advanced Options", expanded=False):
-        st.markdown("#### 🎯 Planned Interface Features")
+        st.markdown(t("settings.planned_features_title", "#### 🎯 Planned Interface Features"))
         
         feature_cols = st.columns(2)
         
@@ -622,11 +622,11 @@ def _render_interface_tab(settings):
             - 📊 Usage statistics display
             """)
         
-        st.info("💡 **Want a specific feature?** These will be added based on user feedback and usage patterns.")
+        st.info(t("settings.want_specific_feature", "💡 **Want a specific feature?** These will be added based on user feedback and usage patterns."))
     
     # Sub-group 5: Current Session Info
     with st.expander("📊 Current Session Information", expanded=False):
-        st.markdown("#### 🔍 Session Details")
+        st.markdown(t("settings.session_details_title", "#### 🔍 Session Details"))
         
         session_cols = st.columns(3)
         

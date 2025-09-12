@@ -264,14 +264,13 @@ def _render_settings_tab(settings, search_service=None):
             # Force prompt cache invalidation and reload
             if search_service is not None:
                 try:
-                    # Invalidate cache first, then reload to ensure fresh language-aware load
-                    search_service.invalidate_prompt_cache()
+                    # Reload system prompt (this now internally invalidates cache first)
                     search_service.reload_system_prompt()
                     st.success(t("sidebar.language_success", "✅ Language changed and system prompt reloaded!"))
                 except Exception as e:
                     st.warning(t("sidebar.language_changed_warning", "⚠️ Language changed but failed to reload prompt: {error}", error=str(e)))
             else:
-                st.warning("⚠️ Search service not available, prompt will be reloaded on next query")
+                st.warning(t("sidebar.search_service_unavailable", "⚠️ Search service not available, prompt will be reloaded on next query"))
                 
         except Exception as e:
             st.error(f"❌ Error during language change: {e}")
@@ -384,36 +383,36 @@ Note: More results = better coverage but higher costs and slower responses"""
     
     # Current Configuration Display
     st.divider()
-    st.markdown("**Current Configuration**")
+    st.markdown(t("sidebar.current_config", "**Current Configuration**"))
     config_cols = st.columns(3)
     
     with config_cols[0]:
-        st.metric("Chunk Size", f"{chunk_size:,} chars", help="Characters per document chunk")
+        st.metric(t("sidebar.chunk_size_metric", "Chunk Size"), f"{chunk_size:,} chars", help=t("sidebar.chunk_size_help_short", "Characters per document chunk"))
     with config_cols[1]:
-        st.metric("Overlap", f"{overlap_size} chars", help="Shared characters between chunks")  
+        st.metric(t("sidebar.overlap_metric", "Overlap"), f"{overlap_size} chars", help=t("sidebar.overlap_help_short", "Shared characters between chunks"))  
     with config_cols[2]:
-        st.metric("Results", f"{top_k}", help="Chunks retrieved per query")
+        st.metric(t("sidebar.results_metric", "Results"), f"{top_k}", help=t("sidebar.results_help_short", "Chunks retrieved per query"))
 
 
 @st.dialog("Reset Index Confirmation")
 def _show_reset_confirmation_dialog(db_manager: DatabaseManager, indexer: DocumentIndexer):
     """Show confirmation dialog for resetting the index."""
-    st.warning("⚠️ **Warning**: This action cannot be undone!")
-    st.markdown("This will permanently delete:")
-    st.markdown("- All indexed documents and their embeddings")
-    st.markdown("- Vector database entries")
-    st.markdown("- Search index data")
+    st.warning(t("sidebar.warning_cannot_undo", "⚠️ **Warning**: This action cannot be undone!"))
+    st.markdown(t("sidebar.will_delete", "This will permanently delete:"))
+    st.markdown(t("sidebar.delete_indexed_docs", "- All indexed documents and their embeddings"))
+    st.markdown(t("sidebar.delete_vector_db", "- Vector database entries"))
+    st.markdown(t("sidebar.delete_search_index", "- Search index data"))
     st.markdown("")
-    st.markdown("You will need to re-index your documents to restore search functionality.")
+    st.markdown(t("sidebar.need_reindex", "You will need to re-index your documents to restore search functionality."))
     
     col1, col2 = st.columns(2)
     
     with col1:
-        if st.button("❌ Cancel", use_container_width=True):
+        if st.button(t("sidebar.cancel", "❌ Cancel"), use_container_width=True):
             st.rerun()
     
     with col2:
-        if st.button("🗑️ Confirm Reset", type="primary", use_container_width=True):
+        if st.button(t("sidebar.confirm_reset", "🗑️ Confirm Reset"), type="primary", use_container_width=True):
             _clear_index(db_manager, indexer)
             st.rerun()
 
@@ -428,6 +427,6 @@ def _clear_index(db_manager: DatabaseManager, indexer: DocumentIndexer):
         st.warning(f"Tantivy clear warning: {e}")
     
     if ok:
-        st.success("✅ Index reset completed")
+        st.success(t("sidebar.index_reset_completed", "✅ Index reset completed"))
     else:
-        st.error("❌ Failed to reset index")
+        st.error(t("sidebar.index_reset_failed", "❌ Failed to reset index"))

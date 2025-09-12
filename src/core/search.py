@@ -128,6 +128,8 @@ class SearchService:
 
     def reload_system_prompt(self) -> None:
         """Reload system prompt from disk and update internal cache."""
+        # Force cache invalidation first to ensure fresh load
+        self._system_prompt = None
         self._system_prompt = self._load_system_prompt()
     
     def invalidate_prompt_cache(self) -> None:
