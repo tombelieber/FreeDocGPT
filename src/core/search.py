@@ -33,7 +33,8 @@ class SearchService:
         self.embedding_service = CachedEmbeddingService(base_embedding, cache=get_shared_embedding_cache())
         self.use_hybrid = use_hybrid
         self.use_reranking = use_reranking
-        # Defer loading the system prompt until it is actually needed
+        # Track current locale for prompt synchronization
+        self._current_locale: Optional[str] = None
         self._system_prompt: Optional[str] = None
         
         # Initialize hybrid search if enabled
@@ -130,16 +131,29 @@ class SearchService:
         """Reload system prompt from disk and update internal cache."""
         # Force cache invalidation first to ensure fresh load
         self._system_prompt = None
-        self._system_prompt = self._load_system_prompt()
+        self._current_locale = None
+        # Use _ensure_system_prompt to properly set both prompt and locale
+        self._ensure_system_prompt()
     
     def invalidate_prompt_cache(self) -> None:
         """Invalidate the cached prompt, forcing reload on next use."""
         self._system_prompt = None
+        self._current_locale = None
 
     def _ensure_system_prompt(self) -> None:
-        """Load the system prompt if it hasn't been loaded yet."""
-        if self._system_prompt is None:
-            self._system_prompt = self._load_system_prompt()
+        """Load the system prompt if it hasn't been loaded yet or locale changed."""
+        try:
+            from ..ui.i18n import get_locale
+            current_locale = get_locale()
+            
+            # Reload prompt if locale changed or not loaded yet
+            if self._system_prompt is None or self._current_locale != current_locale:
+                self._current_locale = current_locale
+                self._system_prompt = self._load_system_prompt()
+        except Exception as e:
+            # Fallback if locale detection fails
+            if self._system_prompt is None:
+                self._system_prompt = self._load_system_prompt()
 
     def search_similar(
         self,

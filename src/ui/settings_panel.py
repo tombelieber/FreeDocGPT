@@ -297,14 +297,14 @@ def _render_models_tab(settings, search_service):
         
         with model_cols[0]:
             embed_model = st.text_input(
-                "🔤 Embedding Model", 
+                t("sidebar.embedding_model_input", "🔤 Embedding Model"), 
                 value=settings.embed_model,
                 help="Model used for document embeddings and search"
             )
             
         with model_cols[1]:
             gen_model = st.text_input(
-                "💬 Generation Model", 
+                t("sidebar.generation_model_input", "💬 Generation Model"), 
                 value=settings.gen_model,
                 help="Model used for response generation and chat"
             )
@@ -399,10 +399,10 @@ def _render_models_tab(settings, search_service):
             
             # Text editor for system prompt
             edited_prompt = st.text_area(
-                "System Prompt Content",
+                t("settings.system_prompt_content", "System Prompt Content"),
                 value=st.session_state.custom_system_prompt,
                 height=250,
-                help="Edit the system prompt that guides AI responses and behavior."
+                help=t("settings.system_prompt_help", "Edit the system prompt that guides AI responses and behavior.")
             )
             
             col1, col2, col3 = st.columns(3)
@@ -540,7 +540,7 @@ def _render_interface_tab(settings):
             "✨ Show visual completion indicator", 
             value=True, 
             disabled=True,
-            help="Coming soon: Visual indicators for response completion"
+            help=t("settings.coming_soon_visual_completion", "Coming soon: Visual indicators for response completion")
         )
     
     st.divider()
@@ -555,20 +555,20 @@ def _render_interface_tab(settings):
         
         with display_cols[0]:
             st.selectbox(
-                "🎨 Color Scheme", 
-                ["Auto (System)", "Light", "Dark"],
+                t("settings.color_scheme", "🎨 Color Scheme"), 
+                [t("settings.color_auto", "Auto (System)"), t("settings.color_light", "Light"), t("settings.color_dark", "Dark")],
                 index=0,
                 disabled=True,
-                help="Coming soon: Theme customization"
+                help=t("settings.coming_soon_theme", "Coming soon: Theme customization")
             )
             
         with display_cols[1]:
             st.selectbox(
-                "📏 Text Size",
-                ["Small", "Medium", "Large"],
+                t("settings.text_size", "📏 Text Size"),
+                [t("settings.size_small", "Small"), t("settings.size_medium", "Medium"), t("settings.size_large", "Large")],
                 index=1,
                 disabled=True,
-                help="Coming soon: Adjustable text sizing"
+                help=t("settings.coming_soon_text_size", "Coming soon: Adjustable text sizing")
             )
     
     st.divider()
@@ -585,7 +585,7 @@ def _render_interface_tab(settings):
                 "🏃 Auto-scroll to latest message",
                 value=True,
                 disabled=True,
-                help="Coming soon: Auto-scroll behavior control"
+                help=t("settings.coming_soon_auto_scroll", "Coming soon: Auto-scroll behavior control")
             )
             
         with behavior_cols[1]:
@@ -593,7 +593,7 @@ def _render_interface_tab(settings):
                 "💾 Auto-save chat history",
                 value=True,
                 disabled=True,
-                help="Coming soon: Automatic chat history saving"
+                help=t("settings.coming_soon_auto_save", "Coming soon: Automatic chat history saving")
             )
     
     st.divider()
@@ -632,18 +632,18 @@ def _render_interface_tab(settings):
         
         with session_cols[0]:
             st.metric(
-                "Active Settings",
+                t("settings.active_settings", "Active Settings"),
                 f"Chunk: {st.session_state.get('chunk_size', 1200)}"
             )
             
         with session_cols[1]:
             st.metric(
-                "Search Mode", 
+                t("settings.search_mode", "Search Mode"), 
                 st.session_state.get('search_mode', 'hybrid').title()
             )
             
         with session_cols[2]:
             st.metric(
-                "Results Limit",
+                t("settings.results_limit", "Results Limit"),
                 st.session_state.get('top_k', 5)
             )

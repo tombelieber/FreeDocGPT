@@ -425,6 +425,7 @@ _TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "sidebar.no_documents_indexed": "No documents indexed",
         "sidebar.search_tab": "### 🔍 Search",
         "sidebar.search_mode": "Search Mode",
+        "sidebar.search_strategy_help": "Search strategy",
         "sidebar.search_strategy": "Search strategy",
         "sidebar.hybrid": "hybrid",
         "sidebar.vector": "vector", 
@@ -515,6 +516,97 @@ _TRANSLATIONS: Dict[str, Dict[str, str]] = {
         
         # Context Widget - Missing Keys  
         "context.memory_label": "Memory: {used} / {total} tokens",
+        
+        # Settings Panel - Additional Missing Keys
+        "settings.system_prompt_content": "System Prompt Content",
+        "settings.system_prompt_help": "Edit the system prompt that guides AI responses and behavior.",
+        "settings.active_settings": "Active Settings",
+        "settings.search_mode": "Search Mode", 
+        "settings.results_limit": "Results Limit",
+        "settings.color_scheme": "🎨 Color Scheme",
+        "settings.text_size": "📏 Text Size",
+        "settings.coming_soon_theme": "Coming soon: Theme customization",
+        "settings.coming_soon_text_size": "Coming soon: Adjustable text sizing",
+        "settings.coming_soon_auto_scroll": "Coming soon: Auto-scroll behavior control",
+        "settings.coming_soon_auto_save": "Coming soon: Automatic chat history saving",
+        "settings.coming_soon_visual_completion": "Coming soon: Visual indicators for response completion",
+        
+        # Settings Options
+        "settings.color_auto": "Auto (System)",
+        "settings.color_light": "Light",
+        "settings.color_dark": "Dark",
+        "settings.size_small": "Small",
+        "settings.size_medium": "Medium",
+        "settings.size_large": "Large",
+        
+        # Sidebar - Missing Keys for Upload and Models
+        "sidebar.setup_guide": "Setup Guide",
+        "sidebar.embedding_model_input": "Embedding Model",
+        "sidebar.embedding_model_help": "Model for document embeddings",
+        "sidebar.generation_model_input": "Generation Model",
+        "sidebar.generation_model_help": "Model for chat responses", 
+        "sidebar.edit_system_prompt": "Edit System Prompt",
+        "sidebar.prompt_content": "Prompt Content",
+        "sidebar.prompt_help": "Customize AI behavior",
+        "sidebar.language": "Language",
+        "sidebar.results_count": "Results Count",
+        "sidebar.completion_sound": "🔊 Completion Sound",
+        "sidebar.completion_sound_help": "Play sound when response completes",
+        
+        # Dialog Titles - Missing Keys
+        "dialog.reset_index_confirmation": "Reset Index Confirmation",
+        "dialog.remove_file_confirmation": "Remove File Confirmation", 
+        "dialog.batch_remove_confirmation": "Remove Selected Files Confirmation",
+        "dialog.remove_all_confirmation": "Remove All Files Confirmation",
+        "dialog.file_manager": "File Manager",
+        
+        # Upload/File Management - Missing Keys
+        "sidebar.select_all_visible": "☑️ All",
+        "sidebar.batch_remove_warning": "⚠️ **Warning**: This will move selected files to trash!",
+        "sidebar.files_to_remove_batch": "Files to remove:",
+        "sidebar.files_selected": "files selected",
+        "sidebar.confirm_remove_selected": "🗑️ Remove Selected",
+        
+        # Search Settings Panel - Missing Keys
+        "sidebar.vector_keyword_balance": "Vector/Keyword Balance",
+        "sidebar.hybrid_balance_help": "0=Keyword only, 1=Vector only",
+        "sidebar.keyword_percent": "📝 Keyword: {percent}%",
+        "sidebar.vector_percent": "🎯 Vector: {percent}%",
+        "sidebar.chunk_size_slider": "Chunk Size (characters)",
+        "sidebar.overlap_size_slider": "Overlap Size (characters)",
+        
+        # Chat History Actions - Missing Keys  
+        "chat_history.edit_action": "Edit",
+        "chat_history.pin_action": "Pin", 
+        "chat_history.unpin_action": "Unpin",
+        "chat_history.archive_action": "Archive",
+        "chat_history.unarchive_action": "Unarchive",
+        "chat_history.export_action": "Export", 
+        "chat_history.delete_action": "Delete",
+        "chat_history.recent": "Recent",
+        "chat_history.pinned": "Pinned",
+        "chat_history.no_search_results": "No chats found",
+        "chat_history.no_pinned": "No pinned chats",
+        "chat_history.click_to_load": "Click to load this chat",
+        "chat_history.today": "Today",
+        "chat_history.yesterday": "Yesterday",
+        "chat_history.this_week": "This Week", 
+        "chat_history.last_week": "Last Week",
+        "chat_history.older": "Older",
+        
+        # Model Settings Panel - Missing Keys
+        "sidebar.models_title": "### 🤖 Models", 
+        "sidebar.current_models": "**Current Models**",
+        "sidebar.embedding_current": "🔤 Embedding: {model}",
+        "sidebar.generation_current": "💬 Generation: {model}",
+        "sidebar.install_ollama": "**Install Ollama:**",
+        "sidebar.pull_models": "**Pull Models:**",
+        
+        # Settings Panel - Missing Keys  
+        "sidebar.settings_title": "### ⚙️ Settings",
+        "sidebar.interface": "**Interface**",
+        "sidebar.document_processing": "**Document Processing**",
+        "sidebar.current_config": "**Current Configuration**",
         
         # Settings - More Missing Keys
         "settings.current_configuration_title": "#### 📊 Current Configuration", 
@@ -809,6 +901,97 @@ _TRANSLATIONS: Dict[str, Dict[str, str]] = {
         
         # Context Widget - Missing Keys  
         "context.memory_label": "記憶體: {used} / {total} tokens",
+        
+        # Settings Panel - Additional Missing Keys
+        "settings.system_prompt_content": "系統提示內容",
+        "settings.system_prompt_help": "編輯指導 AI 回應和行為的系統提示。",
+        "settings.active_settings": "使用中設定",
+        "settings.search_mode": "搜尋模式", 
+        "settings.results_limit": "結果限制",
+        "settings.color_scheme": "🎨 色彩配置",
+        "settings.text_size": "📏 文字大小",
+        "settings.coming_soon_theme": "即將推出：主題自訂",
+        "settings.coming_soon_text_size": "即將推出：可調整文字大小",
+        "settings.coming_soon_auto_scroll": "即將推出：自動捲動行為控制",
+        "settings.coming_soon_auto_save": "即將推出：自動儲存聊天記錄",
+        "settings.coming_soon_visual_completion": "即將推出：回應完成視覺指示器",
+        
+        # Settings Options
+        "settings.color_auto": "自動（系統）",
+        "settings.color_light": "淺色",
+        "settings.color_dark": "深色",
+        "settings.size_small": "小",
+        "settings.size_medium": "中",
+        "settings.size_large": "大",
+        
+        # Sidebar - Missing Keys for Upload and Models
+        "sidebar.setup_guide": "設定指南",
+        "sidebar.embedding_model_input": "嵌入模型",
+        "sidebar.embedding_model_help": "用於文件嵌入的模型",
+        "sidebar.generation_model_input": "生成模型",
+        "sidebar.generation_model_help": "用於聊天回應的模型", 
+        "sidebar.edit_system_prompt": "編輯系統提示",
+        "sidebar.prompt_content": "提示內容",
+        "sidebar.prompt_help": "自訂 AI 行為",
+        "sidebar.language": "語言",
+        "sidebar.results_count": "結果數量",
+        "sidebar.completion_sound": "🔊 完成音效",
+        "sidebar.completion_sound_help": "回應完成時播放音效",
+        
+        # Dialog Titles - Missing Keys
+        "dialog.reset_index_confirmation": "重設索引確認",
+        "dialog.remove_file_confirmation": "刪除檔案確認", 
+        "dialog.batch_remove_confirmation": "刪除所選檔案確認",
+        "dialog.remove_all_confirmation": "刪除所有檔案確認",
+        "dialog.file_manager": "檔案管理器",
+        
+        # Upload/File Management - Missing Keys
+        "sidebar.select_all_visible": "☑️ 全選",
+        "sidebar.batch_remove_warning": "⚠️ **警告**：這將把所選檔案移至垃圾桶！",
+        "sidebar.files_to_remove_batch": "要刪除的檔案：",
+        "sidebar.files_selected": "個檔案已選擇",
+        "sidebar.confirm_remove_selected": "🗑️ 刪除所選項目",
+        
+        # Search Settings Panel - Missing Keys
+        "sidebar.vector_keyword_balance": "向量/關鍵字平衡",
+        "sidebar.hybrid_balance_help": "0=僅關鍵字，1=僅向量",
+        "sidebar.keyword_percent": "📝 關鍵字：{percent}%",
+        "sidebar.vector_percent": "🎯 向量：{percent}%",
+        "sidebar.chunk_size_slider": "區塊大小（字元數）",
+        "sidebar.overlap_size_slider": "重疊大小（字元數）",
+        
+        # Chat History Actions - Missing Keys  
+        "chat_history.edit_action": "編輯",
+        "chat_history.pin_action": "釘選", 
+        "chat_history.unpin_action": "取消釘選",
+        "chat_history.archive_action": "封存",
+        "chat_history.unarchive_action": "取消封存",
+        "chat_history.export_action": "匯出", 
+        "chat_history.delete_action": "刪除",
+        "chat_history.recent": "最近",
+        "chat_history.pinned": "已釘選",
+        "chat_history.no_search_results": "找不到聊天記錄",
+        "chat_history.no_pinned": "沒有釘選的聊天",
+        "chat_history.click_to_load": "點擊載入此聊天",
+        "chat_history.today": "今天",
+        "chat_history.yesterday": "昨天",
+        "chat_history.this_week": "本週", 
+        "chat_history.last_week": "上週",
+        "chat_history.older": "更早",
+        
+        # Model Settings Panel - Missing Keys
+        "sidebar.models_title": "### 🤖 模型", 
+        "sidebar.current_models": "**當前模型**",
+        "sidebar.embedding_current": "🔤 嵌入：{model}",
+        "sidebar.generation_current": "💬 生成：{model}",
+        "sidebar.install_ollama": "**安裝 Ollama：**",
+        "sidebar.pull_models": "**拉取模型：**",
+        
+        # Settings Panel - Missing Keys  
+        "sidebar.settings_title": "### ⚙️ 設定",
+        "sidebar.interface": "**介面**",
+        "sidebar.document_processing": "**文件處理**",
+        "sidebar.current_config": "**當前設定**",
     },
     "zh-Hans": {
         "app.title": "📚 免费文件GPT",
@@ -992,6 +1175,28 @@ _TRANSLATIONS: Dict[str, Dict[str, str]] = {
         
         # Context Widget - Missing Keys  
         "context.memory_label": "内存: {used} / {total} tokens",
+        
+        # Settings Panel - Additional Missing Keys
+        "settings.system_prompt_content": "系统提示内容",
+        "settings.system_prompt_help": "编辑指导 AI 回应和行为的系统提示。",
+        "settings.active_settings": "当前设置",
+        "settings.search_mode": "搜索模式", 
+        "settings.results_limit": "结果限制",
+        "settings.color_scheme": "🎨 颜色方案",
+        "settings.text_size": "📏 文字大小",
+        "settings.coming_soon_theme": "即将推出：主题自定义",
+        "settings.coming_soon_text_size": "即将推出：可调整文字大小",
+        "settings.coming_soon_auto_scroll": "即将推出：自动滚动行为控制",
+        "settings.coming_soon_auto_save": "即将推出：自动保存聊天记录",
+        "settings.coming_soon_visual_completion": "即将推出：响应完成视觉指示器",
+        
+        # Settings Options
+        "settings.color_auto": "自动（系统）",
+        "settings.color_light": "浅色",
+        "settings.color_dark": "深色",
+        "settings.size_small": "小",
+        "settings.size_medium": "中",
+        "settings.size_large": "大",
     },
     "es": {
         "app.title": "📚 DocumentoGPT",
@@ -1175,6 +1380,28 @@ _TRANSLATIONS: Dict[str, Dict[str, str]] = {
         
         # Context Widget - Missing Keys  
         "context.memory_label": "Memoria: {used} / {total} tokens",
+        
+        # Settings Panel - Additional Missing Keys
+        "settings.system_prompt_content": "Contenido del Prompt del Sistema",
+        "settings.system_prompt_help": "Edita el prompt del sistema que guía las respuestas y el comportamiento de la IA.",
+        "settings.active_settings": "Configuración Activa",
+        "settings.search_mode": "Modo de Búsqueda", 
+        "settings.results_limit": "Límite de Resultados",
+        "settings.color_scheme": "🎨 Esquema de Colores",
+        "settings.text_size": "📏 Tamaño del Texto",
+        "settings.coming_soon_theme": "Próximamente: Personalización de temas",
+        "settings.coming_soon_text_size": "Próximamente: Tamaño de texto ajustable",
+        "settings.coming_soon_auto_scroll": "Próximamente: Control de desplazamiento automático",
+        "settings.coming_soon_auto_save": "Próximamente: Guardado automático del historial",
+        "settings.coming_soon_visual_completion": "Próximamente: Indicadores visuales de finalización",
+        
+        # Settings Options
+        "settings.color_auto": "Automático (Sistema)",
+        "settings.color_light": "Claro",
+        "settings.color_dark": "Oscuro",
+        "settings.size_small": "Pequeño",
+        "settings.size_medium": "Mediano",
+        "settings.size_large": "Grande",
     },
     "ja": {
         "app.title": "📚 ドキュメントGPT",
@@ -1349,6 +1576,28 @@ _TRANSLATIONS: Dict[str, Dict[str, str]] = {
         
         # Context Widget - Missing Keys  
         "context.memory_label": "メモリ: {used} / {total} tokens",
+        
+        # Settings Panel - Additional Missing Keys
+        "settings.system_prompt_content": "システムプロンプト内容",
+        "settings.system_prompt_help": "AI の応答と動作を導くシステムプロンプトを編集します。",
+        "settings.active_settings": "アクティブな設定",
+        "settings.search_mode": "検索モード", 
+        "settings.results_limit": "結果制限",
+        "settings.color_scheme": "🎨 カラースキーム",
+        "settings.text_size": "📏 文字サイズ",
+        "settings.coming_soon_theme": "近日公開：テーマのカスタマイズ",
+        "settings.coming_soon_text_size": "近日公開：調整可能な文字サイズ",
+        "settings.coming_soon_auto_scroll": "近日公開：自動スクロール動作の制御",
+        "settings.coming_soon_auto_save": "近日公開：チャット履歴の自動保存",
+        "settings.coming_soon_visual_completion": "近日公開：応答完了の視覚的インジケーター",
+        
+        # Settings Options
+        "settings.color_auto": "自動（システム）",
+        "settings.color_light": "ライト",
+        "settings.color_dark": "ダーク",
+        "settings.size_small": "小",
+        "settings.size_medium": "中",
+        "settings.size_large": "大",
     },
 }
 

@@ -1,4 +1,6 @@
 import streamlit as st
+import subprocess
+import platform
 from pathlib import Path
 
 from ..config import get_settings
@@ -63,24 +65,76 @@ def _render_documents_tab(db_manager: DatabaseManager, indexer: DocumentIndexer,
             help=t("sidebar.auto_detect_help", "Auto-detect document types and languages")
         )
         
-        # Index button
-        if st.button(t("sidebar.index_documents", "🔄 Index Documents"), type="primary", use_container_width=True):
-            chunk_size = st.session_state.get('chunk_size', 1200)
-            overlap_size = st.session_state.get('overlap_size', 200)
-            indexer.index_documents(
-                available_files, 
-                chunk_chars=chunk_size, 
-                overlap=overlap_size, 
-                auto_detect=auto_detect
-            )
-            st.rerun()
+        # Action buttons
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button(t("sidebar.index_documents", "🔄 Index Documents"), type="primary", use_container_width=True):
+                chunk_size = st.session_state.get('chunk_size', 1200)
+                overlap_size = st.session_state.get('overlap_size', 200)
+                indexer.index_documents(
+                    available_files, 
+                    chunk_chars=chunk_size, 
+                    overlap=overlap_size, 
+                    auto_detect=auto_detect
+                )
+                st.rerun()
         
-        # Document list
+        with col2:
+            if st.button(t("sidebar.remove_all", "🗑️ Remove All"), use_container_width=True):
+                _show_remove_all_dialog(available_files, settings)
+        
+        # Document list with multi-select functionality
         with st.expander(t("sidebar.view_documents", "View documents"), expanded=False):
-            for file in available_files[:15]:
-                st.caption(f"📄 {file.name}")
+            # Initialize session state for selected files
+            if "selected_files" not in st.session_state:
+                st.session_state.selected_files = set()
+            
+            # Batch selection controls
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                if st.button(t("sidebar.select_all_visible", "☑️ All"), key="select_all_visible", use_container_width=True):
+                    files_to_show = available_files[:15]
+                    st.session_state.selected_files.update(str(f) for f in files_to_show)
+                    st.rerun()
+            
+            with col2:
+                if st.button(t("sidebar.select_none", "☐ None"), key="select_none_visible", use_container_width=True):
+                    st.session_state.selected_files.clear()
+                    st.rerun()
+            
+            with col3:
+                selected_count = len(st.session_state.selected_files)
+                if selected_count > 0:
+                    if st.button(f"🗑️ ({selected_count})", key="remove_selected", help=t("sidebar.remove_selected", "Remove selected files"), use_container_width=True):
+                        _show_batch_remove_dialog(st.session_state.selected_files, settings)
+            
+            st.divider()
+            
+            # File list with checkboxes
+            files_to_show = available_files[:15]
+            for i, file in enumerate(files_to_show):
+                file_str = str(file)
+                is_selected = file_str in st.session_state.selected_files
+                
+                col1, col2 = st.columns([4, 1])
+                with col1:
+                    # Checkbox for file selection
+                    if st.checkbox(f"📄 {file.name}", value=is_selected, key=f"select_file_{i}"):
+                        st.session_state.selected_files.add(file_str)
+                    elif file_str in st.session_state.selected_files:
+                        st.session_state.selected_files.remove(file_str)
+                
+                with col2:
+                    # Individual remove button
+                    if st.button("🗑️", key=f"remove_single_{i}", help=t("sidebar.remove_file", "Remove file"), use_container_width=False):
+                        _show_remove_file_dialog(file, settings)
+            
             if len(available_files) > 15:
                 st.caption(t("sidebar.and_more", "... and {count} more", count=len(available_files) - 15))
+                
+                # Show all files button if there are many
+                if st.button(t("sidebar.manage_all_files", "📁 Manage All Files"), use_container_width=True):
+                    _show_file_manager_dialog(available_files, settings)
     else:
         st.warning(t("sidebar.no_documents_found", "No documents found"))
         st.markdown(t("sidebar.supported_formats_basic", "**Supported:** PDF, Word, Markdown, TXT, HTML, CSV, Excel, JSON"))
@@ -119,27 +173,27 @@ def _render_search_tab(settings, search_service):
     
     # Search mode
     search_mode = st.radio(
-        "Search Mode",
+        t("sidebar.search_mode", "Search Mode"),
         ["hybrid", "vector", "keyword"],
         index=["hybrid", "vector", "keyword"].index(settings.default_search_mode),
-        help="Search strategy"
+        help=t("sidebar.search_strategy_help", "Search strategy")
     )
     st.session_state['search_mode'] = search_mode
     
     # Hybrid settings
     if search_mode == "hybrid":
         alpha = st.slider(
-            "Vector/Keyword Balance",
+            t("sidebar.vector_keyword_balance", "Vector/Keyword Balance"),
             0.0, 1.0,
             settings.hybrid_alpha,
             step=0.1,
-            help="0=Keyword only, 1=Vector only"
+            help=t("sidebar.hybrid_balance_help", "0=Keyword only, 1=Vector only")
         )
         st.session_state['hybrid_alpha'] = alpha
         
         kw_pct = int((1-alpha)*100)
         vec_pct = int(alpha*100)
-        st.caption(f"📝 Keyword: {kw_pct}% | 🎯 Vector: {vec_pct}%")
+        st.caption(t("sidebar.keyword_percent", "📝 Keyword: {percent}%", percent=kw_pct) + " | " + t("sidebar.vector_percent", "🎯 Vector: {percent}%", percent=vec_pct))
     
     
     # AI features - thinking mode moved to chat footer for better accessibility
@@ -155,7 +209,7 @@ def _render_models_tab(settings, search_service):
     st.caption(f"💬 Generation: {settings.gen_model}")
     
     # Ollama setup info
-    with st.expander("Setup Guide", expanded=False):
+    with st.expander(t("sidebar.setup_guide", "Setup Guide"), expanded=False):
         st.markdown("""
         **Install Ollama:**
         ```bash
@@ -173,15 +227,15 @@ def _render_models_tab(settings, search_service):
     # Model configuration
     st.divider()
     embed_model = st.text_input(
-        "Embedding Model", 
+        t("sidebar.embedding_model_input", "Embedding Model"), 
         value=settings.embed_model,
-        help="Model for document embeddings"
+        help=t("sidebar.embedding_model_help", "Model for document embeddings")
     )
     
     gen_model = st.text_input(
-        "Generation Model", 
+        t("sidebar.generation_model_input", "Generation Model"), 
         value=settings.gen_model,
-        help="Model for chat responses"
+        help=t("sidebar.generation_model_help", "Model for chat responses")
     )
     
     if st.button(t("sidebar.check_ollama_status", "🔍 Check Ollama Status"), use_container_width=True):
@@ -202,19 +256,50 @@ def _render_models_tab(settings, search_service):
     
     if 'custom_system_prompt' not in st.session_state:
         try:
-            if candidate.exists():
-                st.session_state.custom_system_prompt = candidate.read_text(encoding="utf-8")
+            # Load language-specific prompt based on current locale
+            current_locale = get_locale()
+            
+            # Map locales to prompt file names
+            prompt_files = {
+                "en": "rag_prompt_en.md",
+                "zh-Hant": "rag_prompt_zh_hant.md", 
+                "zh-Hans": "rag_prompt_zh_hans.md",
+                "es": "rag_prompt_es.md",
+                "ja": "rag_prompt_ja.md"
+            }
+            
+            # Get the appropriate prompt file for current language
+            prompt_filename = prompt_files.get(current_locale, "rag_prompt_en.md")
+            
+            # Try language-specific prompt first
+            repo_root = Path(__file__).resolve().parents[2]
+            language_candidate = repo_root / prompt_filename
+            
+            if language_candidate.exists() and language_candidate.is_file():
+                content = language_candidate.read_text(encoding="utf-8").strip()
+                if content:
+                    st.session_state.custom_system_prompt = content
+                else:
+                    # Try default file as fallback
+                    if candidate.exists():
+                        st.session_state.custom_system_prompt = candidate.read_text(encoding="utf-8")
+                    else:
+                        st.session_state.custom_system_prompt = ""
             else:
-                st.session_state.custom_system_prompt = ""
+                # Fallback to configured path (backward compatibility)
+                if candidate.exists():
+                    st.session_state.custom_system_prompt = candidate.read_text(encoding="utf-8")
+                else:
+                    st.session_state.custom_system_prompt = ""
         except Exception:
             st.session_state.custom_system_prompt = ""
     
-    with st.expander("Edit System Prompt", expanded=False):
+    with st.expander(t("sidebar.edit_system_prompt", "Edit System Prompt"), expanded=False):
         edited_prompt = st.text_area(
-            "Prompt Content",
+            t("sidebar.prompt_content", "Prompt Content"),
             value=st.session_state.custom_system_prompt,
             height=200,
-            help="Customize AI behavior"
+            help=t("sidebar.prompt_help", "Customize AI behavior")
         )
         
         col1, col2 = st.columns(2)
@@ -232,9 +317,50 @@ def _render_models_tab(settings, search_service):
         with col2:
             if st.button(t("common.reset", "🔄 Reset"), use_container_width=True):
                 try:
-                    if candidate.exists():
-                        st.session_state.custom_system_prompt = candidate.read_text(encoding="utf-8")
-                        st.success(t("common.reset_success", "✅ Reset!"))
+                    # Load language-specific prompt based on current locale
+                    current_locale = get_locale()
+                    
+                    # Map locales to prompt file names
+                    prompt_files = {
+                        "en": "rag_prompt_en.md",
+                        "zh-Hant": "rag_prompt_zh_hant.md", 
+                        "zh-Hans": "rag_prompt_zh_hans.md",
+                        "es": "rag_prompt_es.md",
+                        "ja": "rag_prompt_ja.md"
+                    }
+                    
+                    # Get the appropriate prompt file for current language
+                    prompt_filename = prompt_files.get(current_locale, "rag_prompt_en.md")
+                    
+                    # Try language-specific prompt first
+                    repo_root = Path(__file__).resolve().parents[2]
+                    language_candidate = repo_root / prompt_filename
+                    
+                    prompt_content = ""
+                    
+                    if language_candidate.exists() and language_candidate.is_file():
+                        prompt_content = language_candidate.read_text(encoding="utf-8").strip()
+                        if prompt_content:
+                            st.session_state.custom_system_prompt = prompt_content
+                            st.success(t("common.reset_success", f"✅ Reset to {current_locale} prompt!"))
+                        else:
+                            raise ValueError(f"Language-specific prompt file is empty: {language_candidate}")
+                    else:
+                        # Fallback to configured path (backward compatibility)
+                        if candidate.exists():
+                            prompt_content = candidate.read_text(encoding="utf-8").strip()
+                            if prompt_content:
+                                st.session_state.custom_system_prompt = prompt_content
+                                st.success(t("common.reset_success", "✅ Reset to default prompt!"))
+                            else:
+                                raise ValueError(f"Default prompt file is empty: {candidate}")
+                        else:
+                            raise ValueError(f"No prompt file found for language {current_locale}")
+                    
+                    # Also reload search service if available
+                    if search_service is not None:
+                        search_service.reload_system_prompt()
+                    
                     st.rerun()
                 except Exception as e:
                     st.error(t("sidebar.error", "❌ Error: {error}", error=str(e)))
@@ -255,7 +381,7 @@ def _render_settings_tab(settings, search_service=None):
     }
     
     choice = st.selectbox(
-        "Language", 
+        t("sidebar.language", "Language"), 
         options=list(lang_options.keys()),
         index=list(lang_options.keys()).index(current) if current in lang_options else 0,
         format_func=lambda x: lang_options.get(x, x)
@@ -298,9 +424,9 @@ def _render_settings_tab(settings, search_service=None):
     st.markdown(t("sidebar.interface", "**Interface**"))
     
     completion_sound = st.checkbox(
-        "🔊 Completion Sound",
+        t("sidebar.completion_sound", "🔊 Completion Sound"),
         value=st.session_state.get('enable_completion_sound', settings.enable_completion_sound),
-        help="Play sound when response completes"
+        help=t("sidebar.completion_sound_help", "Play sound when response completes")
     )
     st.session_state['enable_completion_sound'] = completion_sound
     
@@ -318,7 +444,7 @@ def _render_settings_tab(settings, search_service=None):
     
     # Chunk Size with comprehensive tooltip
     chunk_size = st.slider(
-        "Chunk Size (characters)", 
+        t("sidebar.chunk_size_slider", "Chunk Size (characters)"), 
         500, 3000, 
         st.session_state.chunk_size, 
         step=100,
@@ -343,7 +469,7 @@ def _render_settings_tab(settings, search_service=None):
     
     # Overlap Size with comprehensive tooltip  
     overlap_size = st.slider(
-        "Overlap Size (characters)", 
+        t("sidebar.overlap_size_slider", "Overlap Size (characters)"), 
         0, 500, 
         st.session_state.overlap_size, 
         step=25,
@@ -373,7 +499,7 @@ def _render_settings_tab(settings, search_service=None):
     
     # Results Count with comprehensive tooltip
     top_k = st.slider(
-        "Results Count", 
+        t("sidebar.results_count", "Results Count"), 
         1, 20, 
         st.session_state.top_k,
         help="""**Results Count** sets how many relevant document chunks are retrieved for each query.
@@ -410,7 +536,7 @@ Note: More results = better coverage but higher costs and slower responses"""
         st.metric(t("sidebar.results_metric", "Results"), f"{top_k}", help=t("sidebar.results_help_short", "Chunks retrieved per query"))
 
 
-@st.dialog("Reset Index Confirmation")
+@st.dialog(t("dialog.reset_index_confirmation", "Reset Index Confirmation"))
 def _show_reset_confirmation_dialog(db_manager: DatabaseManager, indexer: DocumentIndexer):
     """Show confirmation dialog for resetting the index."""
     st.warning(t("sidebar.warning_cannot_undo", "⚠️ **Warning**: This action cannot be undone!"))
@@ -483,3 +609,252 @@ def _handle_file_uploads(uploaded_files, settings):
         # Auto-refresh to show new files
         if error_count == 0:
             st.rerun()
+
+
+def _move_to_trash(file_path: Path) -> bool:
+    """Move a file to trash using system-appropriate method."""
+    try:
+        system = platform.system().lower()
+        
+        if system == "darwin":  # macOS
+            # Use native trash command
+            subprocess.run(["trash", str(file_path)], check=True)
+        elif system == "linux":
+            # Try trash-cli first, fallback to gio
+            try:
+                subprocess.run(["trash-put", str(file_path)], check=True)
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                try:
+                    subprocess.run(["gio", "trash", str(file_path)], check=True)
+                except (subprocess.CalledProcessError, FileNotFoundError):
+                    # Fallback: move to a .trash folder
+                    trash_dir = file_path.parent / ".trash"
+                    trash_dir.mkdir(exist_ok=True)
+                    trash_file = trash_dir / file_path.name
+                    
+                    # Handle name conflicts
+                    counter = 1
+                    while trash_file.exists():
+                        stem = file_path.stem
+                        suffix = file_path.suffix
+                        trash_file = trash_dir / f"{stem}_{counter}{suffix}"
+                        counter += 1
+                    
+                    file_path.rename(trash_file)
+        else:  # Windows or other
+            # For Windows, move to Recycle Bin would require additional dependency
+            # For now, move to .trash folder as fallback
+            trash_dir = file_path.parent / ".trash"
+            trash_dir.mkdir(exist_ok=True)
+            trash_file = trash_dir / file_path.name
+            
+            # Handle name conflicts
+            counter = 1
+            while trash_file.exists():
+                stem = file_path.stem
+                suffix = file_path.suffix
+                trash_file = trash_dir / f"{stem}_{counter}{suffix}"
+                counter += 1
+            
+            file_path.rename(trash_file)
+        
+        return True
+        
+    except Exception as e:
+        st.error(t("sidebar.trash_error", "❌ Failed to move file to trash: {error}", error=str(e)))
+        return False
+
+
+@st.dialog("Remove File Confirmation")
+def _show_remove_file_dialog(file_path: Path, settings):
+    """Show confirmation dialog for removing a single file."""
+    st.warning(t("sidebar.remove_warning", "⚠️ **Warning**: This will move the file to trash!"))
+    st.markdown(t("sidebar.file_to_remove", "File to remove:"))
+    st.code(str(file_path))
+    st.markdown(t("sidebar.trash_note", "📁 The file will be moved to your system's trash/recycle bin."))
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.button(t("sidebar.cancel", "❌ Cancel"), use_container_width=True):
+            st.rerun()
+    
+    with col2:
+        if st.button(t("sidebar.confirm_remove", "🗑️ Remove"), type="primary", use_container_width=True):
+            if _move_to_trash(file_path):
+                st.success(t("sidebar.file_removed", "✅ File moved to trash: {filename}", filename=file_path.name))
+                st.rerun()
+
+
+@st.dialog("Remove Selected Files Confirmation")
+def _show_batch_remove_dialog(selected_files, settings):
+    """Show confirmation dialog for removing selected files."""
+    selected_paths = [Path(f) for f in selected_files]
+    
+    st.warning(t("sidebar.batch_remove_warning", "⚠️ **Warning**: This will move selected files to trash!"))
+    st.markdown(t("sidebar.files_to_remove_batch", "Files to remove:"))
+    st.markdown(f"**{len(selected_paths)}** {t('sidebar.files_selected', 'files selected')}")
+    
+    # Show files to be removed
+    st.markdown(t("sidebar.preview_files", "**Files to be removed:**"))
+    for path in selected_paths:
+        st.caption(f"🗑️ {path.name}")
+    
+    st.markdown(t("sidebar.trash_note", "📁 All files will be moved to your system's trash/recycle bin."))
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.button(t("sidebar.cancel", "❌ Cancel"), use_container_width=True):
+            st.rerun()
+    
+    with col2:
+        if st.button(t("sidebar.confirm_remove_selected", "🗑️ Remove Selected"), type="primary", use_container_width=True):
+            _handle_bulk_file_removal(selected_files)
+            # Clear selection after removal
+            if "selected_files" in st.session_state:
+                st.session_state.selected_files.clear()
+            st.rerun()
+
+
+@st.dialog("Remove All Files Confirmation")
+def _show_remove_all_dialog(available_files, settings):
+    """Show confirmation dialog for removing all files."""
+    st.error(t("sidebar.remove_all_warning", "⚠️ **DANGER**: This will move ALL documents to trash!"))
+    st.markdown(t("sidebar.files_to_remove_all", "Files to remove:"))
+    st.markdown(f"**{len(available_files)}** {t('sidebar.documents_found', 'documents found')}")
+    
+    # Show first few files as preview
+    st.markdown(t("sidebar.preview_files", "**Preview of files to be removed:**"))
+    for file in available_files[:10]:
+        st.caption(f"🗑️ {file.name}")
+    
+    if len(available_files) > 10:
+        st.caption(f"... {t('sidebar.and_more_files', 'and {count} more files', count=len(available_files) - 10)}")
+    
+    st.markdown(t("sidebar.trash_note", "📁 All files will be moved to your system's trash/recycle bin."))
+    st.markdown(t("sidebar.action_irreversible", "⚠️ This action cannot be undone from within the app."))
+    
+    # Double confirmation
+    confirm_text = st.text_input(
+        t("sidebar.type_confirm", "Type 'REMOVE ALL' to confirm:"),
+        placeholder="REMOVE ALL"
+    )
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.button(t("sidebar.cancel", "❌ Cancel"), use_container_width=True):
+            st.rerun()
+    
+    with col2:
+        is_confirmed = confirm_text.strip().upper() == "REMOVE ALL"
+        if st.button(
+            t("sidebar.confirm_remove_all", "🗑️ Remove All Files"), 
+            type="primary" if is_confirmed else "secondary",
+            disabled=not is_confirmed,
+            use_container_width=True
+        ):
+            if is_confirmed:
+                _handle_remove_all_files(available_files)
+                st.rerun()
+
+
+@st.dialog("File Manager")
+def _show_file_manager_dialog(available_files, settings):
+    """Show dialog for managing all files."""
+    st.markdown(f"### {t('sidebar.file_manager', '📁 File Manager')}")
+    st.markdown(t("sidebar.total_files", "Total files: **{count}**", count=len(available_files)))
+    
+    # Create a list of files to remove
+    if "files_to_remove" not in st.session_state:
+        st.session_state.files_to_remove = set()
+    
+    # File selection
+    st.markdown(t("sidebar.select_files_remove", "**Select files to remove:**"))
+    
+    # Select all / none buttons
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button(t("sidebar.select_all", "☑️ Select All"), use_container_width=True):
+            st.session_state.files_to_remove = set(str(f) for f in available_files)
+            st.rerun()
+    with col2:
+        if st.button(t("sidebar.select_none", "☐ Select None"), use_container_width=True):
+            st.session_state.files_to_remove.clear()
+            st.rerun()
+    
+    # File checkboxes
+    for file in available_files:
+        file_str = str(file)
+        is_selected = file_str in st.session_state.files_to_remove
+        
+        if st.checkbox(f"📄 {file.name}", value=is_selected, key=f"select_{file_str}"):
+            st.session_state.files_to_remove.add(file_str)
+        elif file_str in st.session_state.files_to_remove:
+            st.session_state.files_to_remove.remove(file_str)
+    
+    st.divider()
+    
+    # Action buttons
+    selected_count = len(st.session_state.files_to_remove)
+    if selected_count > 0:
+        st.warning(t("sidebar.files_selected", "⚠️ {count} files selected for removal", count=selected_count))
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button(t("sidebar.cancel", "❌ Cancel"), use_container_width=True):
+                st.session_state.files_to_remove.clear()
+                st.rerun()
+        
+        with col2:
+            if st.button(t("sidebar.remove_selected", "🗑️ Remove Selected"), type="primary", use_container_width=True):
+                _handle_bulk_file_removal(st.session_state.files_to_remove)
+                st.session_state.files_to_remove.clear()
+                st.rerun()
+    else:
+        if st.button(t("sidebar.close", "✅ Close"), use_container_width=True):
+            st.rerun()
+
+
+def _handle_bulk_file_removal(files_to_remove):
+    """Handle removal of multiple files."""
+    success_count = 0
+    error_count = 0
+    
+    for file_str in files_to_remove:
+        file_path = Path(file_str)
+        if _move_to_trash(file_path):
+            success_count += 1
+        else:
+            error_count += 1
+    
+    # Show summary
+    if success_count > 0:
+        st.success(t("sidebar.bulk_remove_success", "✅ Moved {count} files to trash", count=success_count))
+    
+    if error_count > 0:
+        st.error(t("sidebar.bulk_remove_error", "❌ Failed to remove {count} files", count=error_count))
+    
+    st.info(t("sidebar.bulk_remove_summary", "📋 Removal complete: {success} successful, {error} failed", success=success_count, error=error_count))
+
+
+def _handle_remove_all_files(available_files):
+    """Handle removal of all files."""
+    success_count = 0
+    error_count = 0
+    
+    for file_path in available_files:
+        if _move_to_trash(file_path):
+            success_count += 1
+        else:
+            error_count += 1
+    
+    # Show summary
+    if success_count > 0:
+        st.success(t("sidebar.remove_all_success", "✅ Moved {count} files to trash", count=success_count))
+    
+    if error_count > 0:
+        st.error(t("sidebar.remove_all_error", "❌ Failed to remove {count} files", count=error_count))
+    
+    st.info(t("sidebar.remove_all_summary", "📋 Remove all complete: {success} successful, {error} failed", success=success_count, error=error_count))
