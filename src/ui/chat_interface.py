@@ -1,6 +1,7 @@
 import json
 import logging
 import time
+from typing import Optional
 
 import ollama
 import streamlit as st
@@ -8,10 +9,11 @@ import streamlit.components.v1 as components
 
 from ..config import get_settings
 from ..utils import check_ollama_status
-from ..core import SearchService, ChatService, VisionChatService
+from ..core import SearchService, ChatService, VisionChatService, ChatHistoryManager
 from ..core.meta_handler import MetaQueryHandler
 from ..document_processing import VisionDocumentReader
 from .i18n import t
+from .modern_chat_history import auto_save_current_conversation, get_current_conversation_title
 
 logger = logging.getLogger(__name__)
 
@@ -65,11 +67,44 @@ def play_completion_sound():
     components.html(sound_html, height=0)
 
 
-def render_chat_interface(search_service: SearchService, chat_service: ChatService):
+def _trigger_auto_save(history_manager: Optional[ChatHistoryManager]):
+    """Centralized auto-save trigger for any assistant message."""
+    if not history_manager:
+        return
+        
+    settings = get_settings()
+    if not settings.enable_chat_history:
+        return
+    
+    logger.info(f"Triggering auto-save: history_manager={history_manager is not None}, enable_chat_history={settings.enable_chat_history}")
+    try:
+        auto_save_current_conversation(history_manager)
+        logger.info("Auto-save completed successfully")
+    except Exception as e:
+        logger.error(f"Auto-save failed: {e}", exc_info=True)
+
+
+def render_chat_interface(search_service: SearchService, chat_service: ChatService, history_manager: Optional[ChatHistoryManager] = None):
     """Render the main chat interface."""
     settings = get_settings()
     
-    st.header(t("chat.header", "💬 Ask Questions"))
+    # Initialize conversation state if not exists
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+    if "response_stats" not in st.session_state:
+        st.session_state.response_stats = []
+    if "current_conversation_id" not in st.session_state:
+        st.session_state.current_conversation_id = None
+    if "conversation_name" not in st.session_state:
+        st.session_state.conversation_name = None
+    
+    # Modern header with current conversation title
+    current_title = get_current_conversation_title()
+    st.header(current_title)
+    
+    # Only show subtitle if it's a new chat
+    if current_title == t("chat_history.new_chat", "New Chat"):
+        st.caption(t("chat.header", "💬 Ask Questions"))
     
     # Show statistics for last response if available
     if st.session_state.get("response_stats"):
@@ -120,14 +155,9 @@ def render_chat_interface(search_service: SearchService, chat_service: ChatServi
     
     # Chat input
     if prompt := st.chat_input(t("chat.input", "Ask a question about your documents...")):
-        # Initialize session state if needed
-        if "messages" not in st.session_state:
-            st.session_state.messages = []
-        if "response_stats" not in st.session_state:
-            st.session_state.response_stats = []
-        
         # Add user message
         st.session_state.messages.append({"role": "user", "content": prompt})
+        
         with st.chat_message("user"):
             st.markdown(prompt)
         
@@ -149,6 +179,9 @@ def render_chat_interface(search_service: SearchService, chat_service: ChatServi
                         "role": "assistant", 
                         "content": meta_response['message']
                     })
+
+                    # Trigger auto-save for meta-query response
+                    _trigger_auto_save(history_manager)
 
                     # Play completion sound if enabled for meta-queries too
                     if st.session_state.get('enable_completion_sound', False):
@@ -724,6 +757,9 @@ Be concise but show your reasoning process. Write in a thinking style, like you'
                     
                     st.session_state.response_stats.append(stats)
                     st.session_state.messages.append({"role": "assistant", "content": response_text})
+                    
+                    # Trigger auto-save after assistant response
+                    _trigger_auto_save(history_manager)
 
                     # Play completion sound if enabled
                     if st.session_state.get('enable_completion_sound', False):
@@ -749,6 +785,9 @@ Be concise but show your reasoning process. Write in a thinking style, like you'
                 except Exception as e:
                     st.error(t("chat.error_generating", "Error generating response: {err}", err=e))
                     st.session_state.messages.append({"role": "assistant", "content": f"Error: {e}"})
+                    
+                    # Trigger auto-save for error response
+                    _trigger_auto_save(history_manager)
             else:
                 # Simple no results message
                 main_loading_container.empty()
@@ -756,6 +795,9 @@ Be concise but show your reasoning process. Write in a thinking style, like you'
                 
                 no_results_msg = t("chat.no_relevant", "I couldn't find any relevant information in the indexed documents. Please make sure documents are indexed.")
                 st.session_state.messages.append({"role": "assistant", "content": no_results_msg})
+                
+                # Trigger auto-save for no results response
+                _trigger_auto_save(history_manager)
     
     # Footer
     st.divider()

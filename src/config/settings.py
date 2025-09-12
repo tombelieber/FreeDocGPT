@@ -102,6 +102,15 @@ class Settings:
     chat_history_limit: int = field(default_factory=lambda: int(_getenv("CHAT_HISTORY_LIMIT", "20")))
     conversation_context_turns: int = field(default_factory=lambda: int(_getenv("CONVERSATION_CONTEXT_TURNS", "3")))
     enable_query_reformulation: bool = field(default_factory=lambda: _getenv("ENABLE_QUERY_REFORMULATION", "true").lower() == "true")
+    
+    # Chat History Persistence settings
+    enable_chat_history: bool = field(default_factory=lambda: _getenv("ENABLE_CHAT_HISTORY", "true").lower() == "true")
+    chat_history_dir: str = field(default_factory=lambda: _getenv("CHAT_HISTORY_DIR", ".chat_history"))
+    auto_save_conversations: bool = field(default_factory=lambda: _getenv("AUTO_SAVE_CONVERSATIONS", "true").lower() == "true")
+    auto_save_interval: int = field(default_factory=lambda: int(_getenv("AUTO_SAVE_INTERVAL", "5")))
+    max_saved_conversations: int = field(default_factory=lambda: int(_getenv("MAX_SAVED_CONVERSATIONS", "100")))
+    conversation_name_strategy: str = field(default_factory=lambda: _getenv("CONVERSATION_NAME_STRATEGY", "first_message"))  # "first_message" or "ai_summary"
+    auto_cleanup_days: int = field(default_factory=lambda: int(_getenv("AUTO_CLEANUP_DAYS", "90")))
 
     # Ollama/network timeouts (seconds)
     ollama_connect_timeout: float = field(default_factory=lambda: float(_getenv("OLLAMA_CONNECT_TIMEOUT", "5.0")))
