@@ -11,7 +11,7 @@ Your free, local document buddy — read, search, ask, and learn from multiple f
 
 > 零成本、本地運行、私密安全。把檔案丟進 `documents/`，就能閱讀、搜尋、問答、整理、學習。
 
-New in 2025: with local models like gpt-oss:20b and Embedding Gemma available in Ollama, you can run this AI document helper fully on your Mac — no cloud, no sign‑ups. Just drop files and ask.
+With local models like gpt-oss:20b and Embedding Gemma available in Ollama, you can run this AI document helper fully on your Mac — no cloud, no sign‑ups. Just drop files and ask.
 
 —
 
@@ -29,10 +29,10 @@ Table of Contents
 
 ## 🌍 Why This Project & Why Now
 
-Two recent open‑source releases make private, on‑your‑Mac AI document help possible for everyone — even if you’re not technical:
+Open‑source model releases make private, on‑your‑Mac AI document help possible for everyone — even if you're not technical:
 
-- `gpt-oss:20b` (Aug 2025) can answer questions clearly and fluently.
-- Embedding Gemma (Sept 2025) helps the app quickly “remember” what’s in your files.
+- `gpt-oss:20b` can answer questions clearly and fluently.
+- Embedding Gemma helps the app quickly "remember" what's in your files.
 - With Ollama, these run on your computer — no cloud accounts, no fees, and your files never leave your device.
 
 Why we built FreeDocBuddy:
@@ -40,7 +40,7 @@ Why we built FreeDocBuddy:
 - A friendly app: drop files, press “Index”, then ask questions in plain language.
 - Sensible defaults baked in; you don’t need to know how it works inside.
 
-In short: 2025 models make trustworthy, private document help possible at home. FreeDocBuddy puts it one click away.
+In short: Modern local models make trustworthy, private document help possible at home. FreeDocBuddy puts it one click away.
 
 ## 👋 For Everyone (No Tech Needed)
 
@@ -139,6 +139,8 @@ src/
     sidebar.py          # Indexing + search settings + language
     chat_interface.py   # Chat UI with metrics + citations
     settings_panel.py   # Presets, prompt path, Ollama checks
+    modern_chat_history.py  # Enhanced chat history UI
+    context_ring_widget.py  # Context visualization components
     i18n.py             # Localization utilities
   utils/
     logging_config.py   # Logging setup
