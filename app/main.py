@@ -5,6 +5,13 @@ A modular RAG (Retrieval-Augmented Generation) system for document Q&A.
 """
 
 import logging
+import sys
+from pathlib import Path
+
+# Add project root to Python path
+project_root = Path(__file__).parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 import streamlit as st
 import streamlit.components.v1 as components
